@@ -256,27 +256,8 @@ async function render(main) {
       map.setView(initial, 16);
       updateMarker(initial, false);
     } else {
-      // Add mode: mimic "Quản lý POIs" map behavior (fit all existing POIs)
-      let didFit = false;
-      try {
-        const res = await supabase.from('pois').select('lat,lng');
-        if (res.error) throw res.error;
-        const points = (res.data ?? [])
-          .map(p => [Number(p.lat), Number(p.lng)])
-          .filter(([la, ln]) => Number.isFinite(la) && Number.isFinite(ln));
-
-        if (points.length > 0) {
-          const bounds = L.latLngBounds(points);
-          map.fitBounds(bounds, { padding: [20, 20] });
-          didFit = true;
-        }
-      } catch {
-        // ignore and fall back to default
-      }
-
-      if (!didFit) {
-        map.setView(defaultCenter, 14);
-      }
+      // Add mode: always focus TP.HCM
+      map.setView(defaultCenter, 14);
     }
 
     // Click to set
