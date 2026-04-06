@@ -208,6 +208,16 @@ async function render(main) {
         if (res.error) throw res.error;
       }
 
+      const { data: activeLanguages, error: langError } = await supabase
+        .from('languages')
+        .select('code')
+        .eq('is_active', true);
+
+      if (langError) {
+        console.error('Lỗi lấy ngôn ngữ:', langError);
+        throw langError;
+      }
+
       // Translate description to active languages and save to poitranslations
       await Promise.all(
         activeLanguages.map(async (lang) => {
