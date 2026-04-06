@@ -2,7 +2,7 @@ import { ensureConfigured } from '../bootstrap.js';
 import { requireAuth } from '../auth.js';
 import { getSupabase } from '../supabaseClient.js';
 import { renderLayout } from '../layout.js';
-import { escapeHtml, getQueryParam } from '../ui.js';
+import { escapeHtml, getQueryParam, getTailwindColorFromClass, waitForGlobal } from '../ui.js';
 
 if (!ensureConfigured()) {
   // config page already rendered
@@ -101,6 +101,14 @@ async function render(main) {
           <div class="text-sm font-semibold text-slate-700">Longitude <span class="text-rose-600">*</span></div>
           <input id="lng" name="lng" value="${escapeHtml(values.lng)}" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="106.660172" required />
         </label>
+
+        <div class="md:col-span-2">
+          <div class="text-sm font-semibold text-slate-700">Chọn vị trí trên bản đồ</div>
+          <div class="mt-2 bg-white border border-slate-200 rounded-2xl overflow-hidden">
+            <div id="pickMap" class="h-[420px] w-full"></div>
+          </div>
+          <div class="text-[11px] text-slate-400 mt-2">Click lên bản đồ để tự điền Latitude/Longitude.</div>
+        </div>
       </div>
 
       <div class="mt-6 flex items-center justify-end gap-3">
@@ -117,6 +125,12 @@ async function render(main) {
   const form = document.getElementById('poiForm');
   const errorBox = document.getElementById('errorBox');
   const submitBtn = document.getElementById('submitBtn');
+
+  // Map picker
+  const L = await waitForGlobal('L', 5000);
+  if (L) {
+    setupMapPicker(L);
+  }
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -177,6 +191,87 @@ async function render(main) {
       submitBtn.classList.remove('opacity-70');
     }
   });
+
+  function setupMapPicker(L) {
+    const latInput = document.getElementById('lat');
+    const lngInput = document.getElementById('lng');
+
+    const map = L.map('pickMap');
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const stroke = getTailwindColorFromClass('text-blue-600') || '#2563eb';
+    const fill = getTailwindColorFromClass('text-blue-500') || '#3b82f6';
+    const circleStyle = { radius: 50, weight: 2, opacity: 0.9, fillOpacity: 0.12, interactive: false, color: stroke, fillColor: fill };
+
+    const defaultCenter = [10.762622, 106.660172];
+
+    let marker = null;
+    let circle = null;
+
+    function parseLatLng() {
+      const lat = Number(latInput.value);
+      const lng = Number(lngInput.value);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+      if (lat < -90 || lat > 90) return null;
+      if (lng < -180 || lng > 180) return null;
+      return [lat, lng];
+    }
+
+    function setLatLng(lat, lng) {
+      latInput.value = String(lat);
+      lngInput.value = String(lng);
+      updateMarker([lat, lng], true);
+    }
+
+    function updateMarker(ll, pan = false) {
+      if (!marker) {
+        marker = L.marker(ll, { draggable: true }).addTo(map);
+        marker.on('dragend', () => {
+          const p = marker.getLatLng();
+          setLatLng(p.lat, p.lng);
+        });
+      } else {
+        marker.setLatLng(ll);
+      }
+
+      if (!circle) {
+        circle = L.circle(ll, circleStyle).addTo(map);
+      } else {
+        circle.setLatLng(ll);
+      }
+
+      if (pan) {
+        map.setView(ll, Math.max(map.getZoom(), 16));
+      }
+    }
+
+    // Init view
+    const initial = parseLatLng();
+    if (initial) {
+      map.setView(initial, 16);
+      updateMarker(initial, false);
+    } else {
+      map.setView(defaultCenter, 13);
+    }
+
+    // Click to set
+    map.on('click', (e) => {
+      const lat = Number(e.latlng.lat.toFixed(6));
+      const lng = Number(e.latlng.lng.toFixed(6));
+      setLatLng(lat, lng);
+    });
+
+    // Typing into inputs updates marker (best-effort)
+    const onInputs = () => {
+      const ll = parseLatLng();
+      if (ll) updateMarker(ll, false);
+    };
+    latInput.addEventListener('input', onInputs);
+    lngInput.addEventListener('input', onInputs);
+  }
 }
 
 function validate({ id, name, latRaw, lngRaw, isEdit }) {
