@@ -120,8 +120,8 @@ async function render(main) {
         </label>
 
         <label class="block md:col-span-2">
-          <div class="text-sm font-semibold text-slate-700">Mô tả</div>
-          <textarea id="description" name="description" rows="5" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="Mô tả địa điểm...">${escapeHtml(values.description)}</textarea>
+          <div class="text-sm font-semibold text-slate-700">Mô tả <span class="text-rose-600">*</span></div>
+          <textarea id="description" name="description" rows="5" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="Mô tả địa điểm..." required>${escapeHtml(values.description)}</textarea>
         </label>
 
         <label class="block">
@@ -178,7 +178,7 @@ async function render(main) {
     const id = isEdit ? editId : (rawId || suggestedId || generatePoiId());
     if (!isEdit && idInput && !rawId) idInput.value = id;
 
-    const errors = validate({ id: rawId, name, latRaw, lngRaw, isEdit });
+    const errors = validate({ id: rawId, name, description, latRaw, lngRaw, isEdit });
     if (errors.length) {
       errorBox.innerHTML = `
         <div class="font-semibold mb-1">Không thể lưu POI</div>
@@ -335,7 +335,7 @@ async function render(main) {
   }
 }
 
-function validate({ id, name, latRaw, lngRaw, isEdit }) {
+function validate({ id, name, description, latRaw, lngRaw, isEdit }) {
   const errors = [];
 
   if (!isEdit) {
@@ -347,6 +347,9 @@ function validate({ id, name, latRaw, lngRaw, isEdit }) {
 
   if (!name) errors.push('Vui lòng nhập Tên POI.');
   else if (name.length > 200) errors.push('Tên POI tối đa 200 ký tự.');
+
+  if (!description) errors.push('Vui lòng nhập Mô tả.');
+  else if (description.length > 500) errors.push('Mô tả tối đa 500 ký tự.'); // Assuming a reasonable limit
 
   if (!latRaw || Number.isNaN(Number(latRaw))) errors.push('Vui lòng nhập Latitude hợp lệ.');
   if (!lngRaw || Number.isNaN(Number(lngRaw))) errors.push('Vui lòng nhập Longitude hợp lệ.');
