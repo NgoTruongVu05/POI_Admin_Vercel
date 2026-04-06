@@ -100,7 +100,7 @@ async function render(main) {
               <div id="errorBox" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 hidden"></div>
 
               <form id="langForm" class="mt-5 space-y-5">
-                <label class="block">
+                <label id="codeGroup" class="block">
                   <div class="text-sm font-semibold text-slate-700">Mã ngôn ngữ <span class="text-rose-600">*</span></div>
                   <input id="code" value="" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="vi" maxlength="2" required />
                   <div class="mt-1 text-xs text-slate-500">Mã gồm 2 chữ cái, ví dụ: <span class="font-mono">vi</span>, <span class="font-mono">en</span>.</div>
@@ -109,11 +109,6 @@ async function render(main) {
                 <label class="block">
                   <div class="text-sm font-semibold text-slate-700">Tên ngôn ngữ <span class="text-rose-600">*</span></div>
                   <input id="name" value="" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="Tiếng Việt" maxlength="100" required />
-                </label>
-
-                <label class="flex items-center gap-3">
-                  <input id="isActive" type="checkbox" class="h-4 w-4 text-blue-600 border-slate-300 rounded" />
-                  <span class="text-sm text-slate-700">Kích hoạt ngôn ngữ</span>
                 </label>
 
                 <div class="flex items-center justify-end gap-3">
@@ -172,8 +167,8 @@ async function render(main) {
     submitText.textContent = (mode === 'edit') ? 'Cập nhật' : 'Thêm';
 
     const codeInput = document.getElementById('code');
+    const codeGroup = document.getElementById('codeGroup');
     const nameInput = document.getElementById('name');
-    const activeInput = document.getElementById('isActive');
     const errorBox = document.getElementById('errorBox');
 
     errorBox.classList.add('hidden');
@@ -181,12 +176,15 @@ async function render(main) {
 
     codeInput.value = (values.code ?? '').toString();
     nameInput.value = (values.name ?? '').toString();
-    activeInput.checked = Boolean(values.is_active);
 
     if (mode === 'edit') {
+      codeGroup.classList.add('hidden');
+      codeInput.required = false;
       codeInput.setAttribute('readonly', '');
       codeInput.setAttribute('aria-readonly', 'true');
     } else {
+      codeGroup.classList.remove('hidden');
+      codeInput.required = true;
       codeInput.removeAttribute('readonly');
       codeInput.removeAttribute('aria-readonly');
     }
@@ -268,7 +266,6 @@ async function render(main) {
 
     const code = document.getElementById('code').value.trim().toLowerCase();
     const name = document.getElementById('name').value.trim();
-    const isActive = document.getElementById('isActive').checked;
 
     const errors = [];
     if (!code) errors.push('Vui lòng nhập mã ngôn ngữ.');
@@ -287,10 +284,10 @@ async function render(main) {
 
     try {
       if (mode === 'edit') {
-        const res = await supabase.from('languages').update({ name, is_active: isActive }).eq('code', code);
+        const res = await supabase.from('languages').update({ name }).eq('code', code);
         if (res.error) throw res.error;
       } else {
-        const res = await supabase.from('languages').insert({ code, name, is_active: isActive });
+        const res = await supabase.from('languages').insert({ code, name, is_active: true });
         if (res.error) throw res.error;
       }
 
