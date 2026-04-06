@@ -5,23 +5,33 @@ import { renderLayout } from '../layout.js';
 import { escapeHtml, getQueryParam, getTailwindColorFromClass, waitForGlobal } from '../ui.js';
 
 async function translateText(text, fromLang, toLang) {
-  const apiUrl = 'https://api.langbly.com/language/translate/v2';
-  const apiKey = 'PkgVTFvwtPoRdYKHNgoRFN';
+  if (!text) return text; // tránh gọi API khi rỗng
+
+  const apiUrl = 'YOUR_URL';
+  const apiKey = 'YOUR_API_KEY';
+
   const response = await fetch(apiUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
+      'X-API-Key': apiKey
     },
     body: JSON.stringify({
-      text: text,
-      from_lang: fromLang,
-      to_lang: toLang
+      q: text,
+      source: fromLang,
+      target: toLang
     })
   });
-  if (!response.ok) throw new Error('Translation failed');
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error("API error:", errText);
+    throw new Error('Translation failed');
+  }
+
   const data = await response.json();
-  return data.translated_text;
+
+  return data?.data?.translations?.[0]?.translatedText || text;
 }
 
 if (!ensureConfigured()) {
@@ -199,19 +209,26 @@ async function render(main) {
       }
 
       // Translate description to active languages and save to poitranslations
-      const { data: activeLanguages } = await supabase.from('languages').select('code').eq('is_active', true);
-      for (const lang of activeLanguages) {
-        let translatedDesc = description;
-        if (lang.code !== 'vi') {
+      await Promise.all(
+        activeLanguages.map(async (lang) => {
           try {
-            translatedDesc = await translateText(description, 'vi', lang.code);
+            let translatedDesc = description;
+
+            if (description && lang.code !== 'vi') {
+              translatedDesc = await translateText(description, 'vi', lang.code);
+            }
+
+            await supabase.from('poitranslations').upsert({
+              poi_id: id,
+              lang_code: lang.code,
+              description: translatedDesc || null
+            }, { onConflict: 'poi_id,lang_code' });
+
           } catch (e) {
-            console.error(`Failed to translate to ${lang.code}:`, e);
-            translatedDesc = description; // fallback to original
+            console.error(`Lỗi ngôn ngữ ${lang.code}`, e);
           }
-        }
-        await supabase.from('poitranslations').upsert({ poi_id: id, lang_code: lang.code, description: translatedDesc || null }, { onConflict: 'poi_id,lang_code' });
-      }
+        })
+      );
 
       window.location.href = '/pois';
     } catch (err) {
