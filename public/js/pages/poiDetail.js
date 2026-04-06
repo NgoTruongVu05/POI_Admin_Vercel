@@ -108,6 +108,10 @@ async function render(main) {
   const ll = [lat, lng];
   map.setView(ll, 16);
 
+  // Force Leaflet to re-check container size (prevents gray/covered tiles)
+  requestAnimationFrame(() => map.invalidateSize());
+  setTimeout(() => map.invalidateSize(), 100);
+
   const stroke = getTailwindColorFromClass('text-blue-600') || '#2563eb';
   const fill = getTailwindColorFromClass('text-blue-500') || '#3b82f6';
   L.circle(ll, { radius: 50, weight: 2, opacity: 0.9, fillOpacity: 0.12, interactive: false, color: stroke, fillColor: fill }).addTo(map);
