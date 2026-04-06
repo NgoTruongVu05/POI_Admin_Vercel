@@ -4,6 +4,36 @@ import { getSupabase } from '../supabaseClient.js';
 import { renderLayout } from '../layout.js';
 import { escapeHtml, getQueryParam, getTailwindColorFromClass, waitForGlobal } from '../ui.js';
 
+async function translateText(text, fromLang, toLang) {
+  if (!text) return text; // tránh gọi API khi rỗng
+
+  const apiUrl = 'https://api.langbly.com/language/translate/v2';
+  const apiKey = 'PkgVTFvwtPoRdYKHNgoRFN';
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': apiKey
+    },
+    body: JSON.stringify({
+      q: text,
+      source: fromLang,
+      target: toLang
+    })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error("API error:", errText);
+    throw new Error('Translation failed');
+  }
+
+  const data = await response.json();
+
+  return data?.data?.translations?.[0]?.translatedText || text;
+}
+
 if (!ensureConfigured()) {
   // config page already rendered
 } else {
@@ -90,8 +120,8 @@ async function render(main) {
         </label>
 
         <label class="block md:col-span-2">
-          <div class="text-sm font-semibold text-slate-700">Mô tả</div>
-          <textarea id="description" name="description" rows="5" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="Mô tả địa điểm...">${escapeHtml(values.description)}</textarea>
+          <div class="text-sm font-semibold text-slate-700">Mô tả <span class="text-rose-600">*</span></div>
+          <textarea id="description" name="description" rows="5" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="Mô tả địa điểm..." required>${escapeHtml(values.description)}</textarea>
         </label>
 
         <label class="block">
@@ -148,7 +178,7 @@ async function render(main) {
     const id = isEdit ? editId : (rawId || suggestedId || generatePoiId());
     if (!isEdit && idInput && !rawId) idInput.value = id;
 
-    const errors = validate({ id: rawId, name, latRaw, lngRaw, isEdit });
+    const errors = validate({ id: rawId, name, description, latRaw, lngRaw, isEdit });
     if (errors.length) {
       errorBox.innerHTML = `
         <div class="font-semibold mb-1">Không thể lưu POI</div>
@@ -178,14 +208,37 @@ async function render(main) {
         if (res.error) throw res.error;
       }
 
-      // Keep old behavior: sync Vietnamese translation with main description
-      try {
-        await supabase
-          .from('poitranslations')
-          .upsert({ poi_id: id, lang_code: 'vi', description: description || null }, { onConflict: 'poi_id,lang_code' });
-      } catch {
-        // ignore
+      const { data: activeLanguages, error: langError } = await supabase
+        .from('languages')
+        .select('code')
+        .eq('is_active', true);
+
+      if (langError) {
+        console.error('Lỗi lấy ngôn ngữ:', langError);
+        throw langError;
       }
+
+      // Translate description to active languages and save to poitranslations
+      await Promise.all(
+        activeLanguages.map(async (lang) => {
+          try {
+            let translatedDesc = description;
+
+            if (description && lang.code !== 'vi') {
+              translatedDesc = await translateText(description, 'vi', lang.code);
+            }
+
+            await supabase.from('poitranslations').upsert({
+              poi_id: id,
+              lang_code: lang.code,
+              description: translatedDesc || null
+            }, { onConflict: 'poi_id,lang_code' });
+
+          } catch (e) {
+            console.error(`Lỗi ngôn ngữ ${lang.code}`, e);
+          }
+        })
+      );
 
       window.location.href = '/pois';
     } catch (err) {
@@ -292,7 +345,7 @@ async function render(main) {
   }
 }
 
-function validate({ id, name, latRaw, lngRaw, isEdit }) {
+function validate({ id, name, description, latRaw, lngRaw, isEdit }) {
   const errors = [];
 
   if (!isEdit) {
@@ -304,6 +357,9 @@ function validate({ id, name, latRaw, lngRaw, isEdit }) {
 
   if (!name) errors.push('Vui lòng nhập Tên POI.');
   else if (name.length > 200) errors.push('Tên POI tối đa 200 ký tự.');
+
+  if (!description) errors.push('Vui lòng nhập Mô tả.');
+  else if (description.length > 500) errors.push('Mô tả tối đa 500 ký tự.'); // Assuming a reasonable limit
 
   if (!latRaw || Number.isNaN(Number(latRaw))) errors.push('Vui lòng nhập Latitude hợp lệ.');
   if (!lngRaw || Number.isNaN(Number(lngRaw))) errors.push('Vui lòng nhập Longitude hợp lệ.');

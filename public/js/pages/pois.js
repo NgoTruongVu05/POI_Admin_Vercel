@@ -219,6 +219,9 @@ async function render(main) {
 
     confirmBtn.disabled = true;
     try {
+      // Delete all translations for this POI
+      await supabase.from('poitranslations').delete().eq('poi_id', pendingDeleteId);
+      
       const res = await supabase.from('pois').delete().eq('id', pendingDeleteId);
       if (res.error) throw res.error;
       window.location.reload();
