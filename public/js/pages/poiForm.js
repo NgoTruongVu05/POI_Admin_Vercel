@@ -7,8 +7,8 @@ import { escapeHtml, getQueryParam, getTailwindColorFromClass, waitForGlobal } f
 async function translateText(text, fromLang, toLang) {
   if (!text) return text; // tránh gọi API khi rỗng
 
-  const apiUrl = 'YOUR_URL';
-  const apiKey = 'YOUR_API_KEY';
+  const apiUrl = 'https://api.langbly.com/language/translate/v2';
+  const apiKey = 'PkgVTFvwtPoRdYKHNgoRFN';
 
   const response = await fetch(apiUrl, {
     method: 'POST',
