@@ -213,8 +213,12 @@ async function render(main) {
     let circle = null;
 
     function parseLatLng() {
-      const lat = Number(latInput.value);
-      const lng = Number(lngInput.value);
+      const latRaw = (latInput.value ?? '').toString().trim();
+      const lngRaw = (lngInput.value ?? '').toString().trim();
+      if (latRaw === '' || lngRaw === '') return null;
+
+      const lat = Number(latRaw);
+      const lng = Number(lngRaw);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
       if (lat < -90 || lat > 90) return null;
       if (lng < -180 || lng > 180) return null;
@@ -259,6 +263,11 @@ async function render(main) {
       // Add mode: always focus TP.HCM
       map.setView(defaultCenter, 14);
     }
+
+    // Leaflet sometimes renders partially until it knows the final container size.
+    // Force a reflow to avoid the gray area.
+    requestAnimationFrame(() => map.invalidateSize());
+    setTimeout(() => map.invalidateSize(), 100);
 
     // Click to set
     map.on('click', (e) => {
