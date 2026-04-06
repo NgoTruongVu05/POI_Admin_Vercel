@@ -18,7 +18,7 @@ async function render(main) {
   main.innerHTML = `
     <div class="flex items-start justify-between gap-6">
       <div>
-        <h1 class="text-2xl font-semibold">Con gà</h1>
+        <h1 class="text-2xl font-semibold">Quản lý POIs</h1>
         <p class="text-sm text-slate-500 mt-1">Thêm, sửa, xoá các điểm tham quan trên bản đồ.</p>
       </div>
       <a href="/poi-form" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-semibold hover:bg-blue-700 transition">
