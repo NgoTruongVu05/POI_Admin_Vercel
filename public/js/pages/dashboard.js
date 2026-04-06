@@ -1,0 +1,106 @@
+import { ensureConfigured } from '../bootstrap.js';
+import { requireAuth } from '../auth.js';
+import { getSupabase } from '../supabaseClient.js';
+import { renderLayout } from '../layout.js';
+import { escapeHtml } from '../ui.js';
+
+if (!ensureConfigured()) {
+  // config page already rendered
+} else {
+  const session = await requireAuth();
+  if (session) {
+    const main = renderLayout({ activeKey: 'dashboard', title: 'Dashboard | POI Admin', user: session.user });
+    await render(main);
+  }
+}
+
+async function render(main) {
+  const supabase = getSupabase();
+
+  let poiTotal = 0;
+  let recentPois = [];
+
+  try {
+    const countRes = await supabase
+      .from('pois')
+      .select('*', { count: 'exact', head: true });
+
+    poiTotal = countRes.count ?? 0;
+
+    const recentRes = await supabase
+      .from('pois')
+      .select('id,name')
+      .order('id', { ascending: false })
+      .limit(2);
+
+    if (recentRes.error) throw recentRes.error;
+    recentPois = recentRes.data ?? [];
+  } catch {
+    poiTotal = 0;
+    recentPois = [];
+  }
+
+  const visits = 1284;
+  const growth = '+12%';
+
+  main.innerHTML = `
+    <div>
+      <h1 class="text-2xl font-semibold">Tổng quan hệ thống</h1>
+      <p class="text-sm text-slate-500 mt-1">Chào mừng quay trở lại.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mt-6">
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 flex items-center gap-4">
+        <div class="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center"><i class="bi bi-geo-alt"></i></div>
+        <div>
+          <div class="text-xs text-slate-500">Tổng số POIs</div>
+          <div class="text-2xl font-semibold mt-0.5">${escapeHtml(String(poiTotal))}</div>
+        </div>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 flex items-center gap-4">
+        <div class="w-12 h-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center"><i class="bi bi-people"></i></div>
+        <div>
+          <div class="text-xs text-slate-500">Lượt truy cập</div>
+          <div class="text-2xl font-semibold mt-0.5">${escapeHtml(String(visits))}</div>
+        </div>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 flex items-center gap-4">
+        <div class="w-12 h-12 rounded-2xl bg-violet-600 text-white flex items-center justify-center"><i class="bi bi-graph-up"></i></div>
+        <div>
+          <div class="text-xs text-slate-500">Tăng trưởng</div>
+          <div class="text-2xl font-semibold mt-0.5">${escapeHtml(growth)}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
+      <section class="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+        <div class="px-6 py-5 border-b border-slate-100 font-semibold">POIs mới thêm</div>
+        <div class="px-6 py-6">
+          ${recentPois.length === 0 ? `<div class="text-sm text-slate-500 text-center">Chưa có POI nào.</div>` : renderRecentPois(recentPois)}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderRecentPois(items) {
+  const rows = items.map(poi => {
+    const name = (poi?.name ?? '').toString();
+    return `
+      <div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center"><i class="bi bi-geo-alt"></i></div>
+          <div class="min-w-0">
+            <div class="font-semibold truncate">${escapeHtml(name)}</div>
+            <div class="text-xs text-slate-500 truncate">POI mới</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `<div class="space-y-3">${rows}</div>`;
+}

@@ -1,1 +1,4 @@
-db.php
+node_modules/
+
+# generated at build-time
+public/env.js

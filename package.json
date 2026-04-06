@@ -1,0 +1,13 @@
+{
+  "name": "poi-admin-vercel-static",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/build.mjs && npx http-server public -p 3000 -c-1",
+    "serve": "npx http-server public -p 3000 -c-1"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

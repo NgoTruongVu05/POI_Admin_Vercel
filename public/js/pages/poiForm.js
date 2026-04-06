@@ -1,0 +1,204 @@
+import { ensureConfigured } from '../bootstrap.js';
+import { requireAuth } from '../auth.js';
+import { getSupabase } from '../supabaseClient.js';
+import { renderLayout } from '../layout.js';
+import { escapeHtml, getQueryParam } from '../ui.js';
+
+if (!ensureConfigured()) {
+  // config page already rendered
+} else {
+  const session = await requireAuth();
+  if (session) {
+    const main = renderLayout({ activeKey: 'pois', title: 'Thêm/Sửa POI | POI Admin', user: session.user });
+    await render(main);
+  }
+}
+
+async function render(main) {
+  const supabase = getSupabase();
+  const editId = (getQueryParam('id') ?? '').trim();
+  const isEdit = editId !== '';
+
+  let values = { id: '', name: '', description: '', lat: '', lng: '' };
+  let loadError = '';
+
+  if (isEdit) {
+    try {
+      const res = await supabase.from('pois').select('id,name,description,lat,lng').eq('id', editId).limit(1).single();
+      if (res.error) throw res.error;
+      values = {
+        id: res.data.id,
+        name: res.data.name ?? '',
+        description: res.data.description ?? '',
+        lat: String(res.data.lat ?? ''),
+        lng: String(res.data.lng ?? '')
+      };
+    } catch {
+      loadError = 'Không tìm thấy POI để sửa.';
+    }
+  } else {
+    // Suggest next id best-effort
+    try {
+      const last = await supabase.from('pois').select('id').order('id', { ascending: false }).limit(1).maybeSingle();
+      const lastId = (last.data?.id ?? '').toString();
+      const m = /^poi_(\d+)$/i.exec(lastId);
+      if (m) {
+        const next = Number(m[1]) + 1;
+        values.id = `poi_${String(next).padStart(2, '0')}`;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const pageHeading = isEdit ? 'Sửa POI' : 'Thêm POI mới';
+  const pageSub = isEdit ? 'Cập nhật thông tin điểm tham quan.' : 'Nhập thông tin điểm tham quan để thêm vào hệ thống.';
+
+  main.innerHTML = `
+    <div class="flex items-start justify-between gap-6">
+      <div>
+        <h1 class="text-2xl font-semibold">${escapeHtml(pageHeading)}</h1>
+        <p class="text-sm text-slate-500 mt-1">${escapeHtml(pageSub)}</p>
+      </div>
+      <a href="/pois" class="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 text-slate-700 px-4 py-2 text-sm font-semibold hover:bg-slate-50 transition">
+        <i class="bi bi-arrow-left"></i>
+        <span>Quay lại</span>
+      </a>
+    </div>
+
+    ${loadError ? `
+      <div class="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">${escapeHtml(loadError)}</div>
+    ` : ''}
+
+    <div id="errorBox" class="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700 hidden"></div>
+
+    <form id="poiForm" class="mt-6 bg-white border border-slate-200 rounded-2xl p-6" autocomplete="off">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        ${isEdit ? '' : `
+          <label class="block">
+            <div class="text-sm font-semibold text-slate-700">Mã POI (ID) <span class="text-rose-600">*</span></div>
+            <input id="id" name="id" value="${escapeHtml(values.id)}" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="poi_04" required maxlength="50" />
+            <div class="mt-1 text-xs text-slate-500">Ví dụ: <span class="font-mono">poi_04</span> (không dấu cách).</div>
+          </label>
+        `}
+
+        <label class="block ${isEdit ? 'md:col-span-2' : 'md:col-span-2'}">
+          <div class="text-sm font-semibold text-slate-700">Tên POI <span class="text-rose-600">*</span></div>
+          <input id="name" name="name" value="${escapeHtml(values.name)}" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="Nhập tên địa điểm..." required maxlength="200" />
+        </label>
+
+        <label class="block md:col-span-2">
+          <div class="text-sm font-semibold text-slate-700">Mô tả</div>
+          <textarea id="description" name="description" rows="5" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="Mô tả địa điểm...">${escapeHtml(values.description)}</textarea>
+        </label>
+
+        <label class="block">
+          <div class="text-sm font-semibold text-slate-700">Latitude <span class="text-rose-600">*</span></div>
+          <input id="lat" name="lat" value="${escapeHtml(values.lat)}" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="10.762622" required />
+        </label>
+
+        <label class="block">
+          <div class="text-sm font-semibold text-slate-700">Longitude <span class="text-rose-600">*</span></div>
+          <input id="lng" name="lng" value="${escapeHtml(values.lng)}" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="106.660172" required />
+        </label>
+      </div>
+
+      <div class="mt-6 flex items-center justify-end gap-3">
+        <button id="submitBtn" type="submit" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 text-white px-5 py-3 text-sm font-semibold hover:bg-blue-700 transition">
+          <i class="bi bi-check2"></i>
+          <span>${escapeHtml(isEdit ? 'Cập nhật' : 'Thêm')}</span>
+        </button>
+      </div>
+    </form>
+  `;
+
+  if (loadError) return;
+
+  const form = document.getElementById('poiForm');
+  const errorBox = document.getElementById('errorBox');
+  const submitBtn = document.getElementById('submitBtn');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorBox.classList.add('hidden');
+
+    const id = isEdit ? editId : document.getElementById('id').value.trim();
+    const name = document.getElementById('name').value.trim();
+    const description = document.getElementById('description').value.trim();
+    const latRaw = document.getElementById('lat').value.trim();
+    const lngRaw = document.getElementById('lng').value.trim();
+
+    const errors = validate({ id, name, latRaw, lngRaw, isEdit });
+    if (errors.length) {
+      errorBox.innerHTML = `
+        <div class="font-semibold mb-1">Không thể lưu POI</div>
+        <ul class="list-disc pl-5 space-y-0.5">${errors.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul>
+      `;
+      errorBox.classList.remove('hidden');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.classList.add('opacity-70');
+
+    const lat = Number(latRaw);
+    const lng = Number(lngRaw);
+
+    try {
+      if (isEdit) {
+        const res = await supabase
+          .from('pois')
+          .update({ name, description: description || null, lat, lng })
+          .eq('id', id);
+        if (res.error) throw res.error;
+      } else {
+        const res = await supabase
+          .from('pois')
+          .insert({ id, name, description: description || null, lat, lng });
+        if (res.error) throw res.error;
+      }
+
+      // Keep old behavior: sync Vietnamese translation with main description
+      try {
+        await supabase
+          .from('poitranslations')
+          .upsert({ poi_id: id, lang_code: 'vi', description: description || null }, { onConflict: 'poi_id,lang_code' });
+      } catch {
+        // ignore
+      }
+
+      window.location.href = '/pois';
+    } catch (err) {
+      const msg = (err?.message ?? 'Không thể lưu POI. Vui lòng thử lại.').toString();
+      errorBox.textContent = msg;
+      errorBox.classList.remove('hidden');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.classList.remove('opacity-70');
+    }
+  });
+}
+
+function validate({ id, name, latRaw, lngRaw, isEdit }) {
+  const errors = [];
+
+  if (!isEdit) {
+    if (!id) errors.push('Vui lòng nhập Mã POI (ID).');
+    else if (id.length > 50) errors.push('Mã POI (ID) tối đa 50 ký tự.');
+    else if (!/^[A-Za-z0-9_-]+$/.test(id)) errors.push('Mã POI (ID) chỉ nên gồm chữ, số, dấu gạch dưới (_) hoặc gạch ngang (-).');
+  }
+
+  if (!name) errors.push('Vui lòng nhập Tên POI.');
+  else if (name.length > 200) errors.push('Tên POI tối đa 200 ký tự.');
+
+  if (!latRaw || Number.isNaN(Number(latRaw))) errors.push('Vui lòng nhập Latitude hợp lệ.');
+  if (!lngRaw || Number.isNaN(Number(lngRaw))) errors.push('Vui lòng nhập Longitude hợp lệ.');
+
+  const lat = Number(latRaw);
+  const lng = Number(lngRaw);
+
+  if (Number.isFinite(lat) && (lat < -90 || lat > 90)) errors.push('Latitude phải nằm trong [-90, 90].');
+  if (Number.isFinite(lng) && (lng < -180 || lng > 180)) errors.push('Longitude phải nằm trong [-180, 180].');
+
+  return errors;
+}
