@@ -111,7 +111,8 @@ async function render(main) {
   if (bounds.length > 0) {
     map.fitBounds(bounds, { padding: [20, 20] });
   } else {
-    map.setView([10.762622, 106.660172], 13);
+    // TP.HCM (District 1 area)
+    map.setView([10.776889, 106.700806], 13);
   }
 
   const poiList = document.getElementById('poiList');

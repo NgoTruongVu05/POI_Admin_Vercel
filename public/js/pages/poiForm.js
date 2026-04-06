@@ -206,7 +206,8 @@ async function render(main) {
     const fill = getTailwindColorFromClass('text-blue-500') || '#3b82f6';
     const circleStyle = { radius: 50, weight: 2, opacity: 0.9, fillOpacity: 0.12, interactive: false, color: stroke, fillColor: fill };
 
-    const defaultCenter = [10.762622, 106.660172];
+    // TP.HCM (District 1 area)
+    const defaultCenter = [10.776889, 106.700806];
 
     let marker = null;
     let circle = null;
@@ -254,7 +255,7 @@ async function render(main) {
       map.setView(initial, 16);
       updateMarker(initial, false);
     } else {
-      map.setView(defaultCenter, 13);
+      map.setView(defaultCenter, 14);
     }
 
     // Click to set
