@@ -1,0 +1,71 @@
+CREATE DATABASE IF NOT EXISTS POI_Database CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE POI_Database;
+
+-- =========================================================
+-- MIGRATE (DB đã tồn tại): BỎ tour + BỎ category của POI
+-- Chạy phần này nếu bạn đang dùng schema cũ có `tours/tour_details` hoặc `categories/pois.categoryId`.
+-- Lưu ý: lệnh DROP FOREIGN KEY sẽ lỗi nếu tên constraint khác. Nếu lỗi:
+--   SHOW CREATE TABLE pois;
+-- rồi thay đúng tên foreign key vào.
+-- =========================================================
+-- DROP TABLE IF EXISTS tour_details;
+-- DROP TABLE IF EXISTS tours;
+-- ALTER TABLE pois DROP FOREIGN KEY fk_category;
+-- ALTER TABLE pois DROP COLUMN categoryId;
+-- DROP TABLE IF EXISTS categories;
+
+-- =========================================================
+-- FRESH INSTALL (tạo mới DB từ đầu): Schema KHÔNG có tours/category
+-- =========================================================
+
+CREATE TABLE IF NOT EXISTS users (
+    uid VARCHAR(50) PRIMARY KEY,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS pois (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    description TEXT,
+    lat DOUBLE NOT NULL,
+    lng DOUBLE NOT NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS languages (
+    code VARCHAR(2) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    isActive BIT NOT NULL DEFAULT b'1'
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS poitranslations (
+    poiId VARCHAR(50) NOT NULL,
+    langCode VARCHAR(2) NOT NULL,
+    description TEXT,
+    PRIMARY KEY (poiId, langCode),
+    CONSTRAINT fk_poi_translation FOREIGN KEY (poiId)
+        REFERENCES pois(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_language FOREIGN KEY (langCode)
+        REFERENCES languages(code) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+INSERT IGNORE INTO users (uid, username, password)
+VALUES ('1', 'admin', 'admin123');
+
+INSERT IGNORE INTO pois (id, name, description, lat, lng) VALUES
+('poi_01', N'Cổng chào Khu du lịch', N'Điểm tập trung và soát vé chính', 10.762622, 106.660172),
+('poi_02', N'Bến thuyền trung tâm', N'Nơi bắt đầu tour tham quan sông nước', 10.763000, 106.661000),
+('poi_03', N'Khu ẩm thực ven hồ', N'Phục vụ các món ăn đặc sản địa phương', 10.762500, 106.662000);
+
+INSERT IGNORE INTO languages (code, name, isActive) VALUES
+('vi', N'(VN) Tiếng Việt', b'1'),
+('en', N'(US) English', b'1'),
+('zh', N'(CN) 汉语', b'1'),
+('ja', N'(JP) 日本語', b'1'),
+('ko', N'(KR) 한국어', b'1'),
+('fr', N'(FR) Français', b'1');
+
+INSERT IGNORE INTO poitranslations (poiId, langCode, description) VALUES
+('poi_01', 'vi', N'Điểm tập trung và soát vé chính'),
+('poi_02', 'vi', N'Nơi bắt đầu tour tham quan sông nước'),
+('poi_03', 'vi', N'Phục vụ các món ăn đặc sản địa phương');
