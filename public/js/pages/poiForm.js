@@ -20,6 +20,7 @@ async function render(main) {
   const isEdit = editId !== '';
 
   let values = { id: '', name: '', description: '', lat: '', lng: '' };
+  let suggestedId = '';
   let loadError = '';
 
   if (isEdit) {
@@ -44,7 +45,8 @@ async function render(main) {
       const m = /^poi_(\d+)$/i.exec(lastId);
       if (m) {
         const next = Number(m[1]) + 1;
-        values.id = `poi_${String(next).padStart(2, '0')}`;
+        suggestedId = `poi_${String(next).padStart(2, '0')}`;
+        values.id = suggestedId;
       }
     } catch {
       // ignore
@@ -76,9 +78,9 @@ async function render(main) {
       <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
         ${isEdit ? '' : `
           <label class="block">
-            <div class="text-sm font-semibold text-slate-700">Mã POI (ID) <span class="text-rose-600">*</span></div>
-            <input id="id" name="id" value="${escapeHtml(values.id)}" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="poi_04" required maxlength="50" />
-            <div class="mt-1 text-xs text-slate-500">Ví dụ: <span class="font-mono">poi_04</span> (không dấu cách).</div>
+            <div class="text-sm font-semibold text-slate-700">Mã POI (ID)</div>
+            <input id="id" name="id" value="${escapeHtml(values.id)}" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="poi_04" maxlength="50" />
+            <div class="mt-1 text-xs text-slate-500">Ví dụ: <span class="font-mono">poi_04</span>. Nếu để trống hệ thống sẽ tự tạo.</div>
           </label>
         `}
 
@@ -125,6 +127,7 @@ async function render(main) {
   const form = document.getElementById('poiForm');
   const errorBox = document.getElementById('errorBox');
   const submitBtn = document.getElementById('submitBtn');
+  const idInput = isEdit ? null : document.getElementById('id');
 
   // Map picker
   const L = await waitForGlobal('L', 5000);
@@ -136,13 +139,16 @@ async function render(main) {
     e.preventDefault();
     errorBox.classList.add('hidden');
 
-    const id = isEdit ? editId : document.getElementById('id').value.trim();
+    const rawId = isEdit ? editId : (idInput?.value ?? '').toString().trim();
     const name = document.getElementById('name').value.trim();
     const description = document.getElementById('description').value.trim();
     const latRaw = document.getElementById('lat').value.trim();
     const lngRaw = document.getElementById('lng').value.trim();
 
-    const errors = validate({ id, name, latRaw, lngRaw, isEdit });
+    const id = isEdit ? editId : (rawId || suggestedId || generatePoiId());
+    if (!isEdit && idInput && !rawId) idInput.value = id;
+
+    const errors = validate({ id: rawId, name, latRaw, lngRaw, isEdit });
     if (errors.length) {
       errorBox.innerHTML = `
         <div class="font-semibold mb-1">Không thể lưu POI</div>
@@ -290,9 +296,10 @@ function validate({ id, name, latRaw, lngRaw, isEdit }) {
   const errors = [];
 
   if (!isEdit) {
-    if (!id) errors.push('Vui lòng nhập Mã POI (ID).');
-    else if (id.length > 50) errors.push('Mã POI (ID) tối đa 50 ký tự.');
-    else if (!/^[A-Za-z0-9_-]+$/.test(id)) errors.push('Mã POI (ID) chỉ nên gồm chữ, số, dấu gạch dưới (_) hoặc gạch ngang (-).');
+    if (id) {
+      if (id.length > 50) errors.push('Mã POI (ID) tối đa 50 ký tự.');
+      else if (!/^[A-Za-z0-9_-]+$/.test(id)) errors.push('Mã POI (ID) chỉ nên gồm chữ, số, dấu gạch dưới (_) hoặc gạch ngang (-).');
+    }
   }
 
   if (!name) errors.push('Vui lòng nhập Tên POI.');
@@ -308,4 +315,11 @@ function validate({ id, name, latRaw, lngRaw, isEdit }) {
   if (Number.isFinite(lng) && (lng < -180 || lng > 180)) errors.push('Longitude phải nằm trong [-180, 180].');
 
   return errors;
+}
+
+function generatePoiId() {
+  // Must match validation: letters/numbers/_/- only
+  const now = Date.now().toString(36);
+  const rand = Math.random().toString(36).slice(2, 6);
+  return `poi_${now}${rand}`;
 }
