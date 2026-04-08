@@ -250,11 +250,29 @@ async function render(main) {
         const p = await supabase.from('pois').select('image').eq('id', pendingDeleteId).limit(1).single();
         if (!p.error && p.data?.image) {
           const img = String(p.data.image);
-          const m = img.match(/\/storage\/v1\/object\/public\/(.*?)\/(.*)$/);
-          if (m) {
-            const bucket = m[1];
-            const path = decodeURIComponent(m[2]);
-            try { await supabase.storage.from(bucket).remove([path]); } catch (e) { console.warn('Failed to remove image:', e); }
+
+          function parseStorageUrl(u) {
+            if (!u) return null;
+            try {
+              const s = String(u);
+              let m = s.match(/\/storage\/v1\/object\/public\/(.*?)\/(.*)$/);
+              if (m) return { bucket: m[1], path: decodeURIComponent(m[2]) };
+              m = s.match(/object\/public\/(.*?)\/(.*)$/);
+              if (m) return { bucket: m[1], path: decodeURIComponent(m[2]) };
+              const idx = s.indexOf('poi-images/');
+              if (idx !== -1) return { bucket: 'poi-images', path: s.substring(idx + 'poi-images/'.length).split('?')[0] };
+              return null;
+            } catch (e) { return null; }
+          }
+
+          const parsed = parseStorageUrl(img);
+          if (parsed && parsed.bucket && parsed.path) {
+            try {
+              const { error: remErr } = await supabase.storage.from(parsed.bucket).remove([parsed.path]);
+              if (remErr) console.warn('Failed to remove image:', remErr.message ?? remErr);
+            } catch (e) {
+              console.warn('Failed to remove image:', e);
+            }
           }
         }
       } catch (e) {

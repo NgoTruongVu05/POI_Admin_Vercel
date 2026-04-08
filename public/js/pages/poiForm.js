@@ -230,33 +230,50 @@ async function render(main) {
     const file = imageFileInput?.files?.[0] ?? null;
 
     try {
-      // upload image if a new file was chosen
-      let imageUrl = values.image || null;
-      if (file) {
-        const bucket = 'poi-images';
+        // upload image if a new file was chosen
+        let imageUrl = values.image || null;
+        if (file) {
+          const bucket = 'poi-images';
 
-        // If there is an existing image URL, attempt to delete the old file from storage
-        try {
-          if (values.image) {
-            const m = String(values.image).match(/\/storage\/v1\/object\/public\/(.*?)\/(.*)$/);
-            if (m) {
-              const oldBucket = m[1];
-              const oldPath = decodeURIComponent(m[2]);
-              if (oldBucket === bucket && oldPath) {
-                await supabase.storage.from(bucket).remove([oldPath]);
+          // Helper: parse bucket and path from a Supabase public storage URL
+          function parseStorageUrl(u) {
+            if (!u) return null;
+            try {
+              const s = String(u);
+              // primary pattern: https://<host>/storage/v1/object/public/{bucket}/{path}
+              let m = s.match(/\/storage\/v1\/object\/public\/(.*?)\/(.*)$/);
+              if (m) return { bucket: m[1], path: decodeURIComponent(m[2]) };
+              // fallback: contains /object/public/{bucket}/{path}
+              m = s.match(/object\/public\/(.*?)\/(.*)$/);
+              if (m) return { bucket: m[1], path: decodeURIComponent(m[2]) };
+              // fallback: look for known bucket segment
+              const idx = s.indexOf(`${bucket}/`);
+              if (idx !== -1) {
+                return { bucket, path: s.substring(idx + bucket.length + 1).split('?')[0] };
+              }
+              return null;
+            } catch (e) { return null; }
+          }
+
+          // If there is an existing image URL, attempt to delete the old file from storage
+          try {
+            if (values.image) {
+              const parsed = parseStorageUrl(values.image);
+              if (parsed && parsed.bucket === bucket && parsed.path) {
+                const { error: remErr } = await supabase.storage.from(bucket).remove([parsed.path]);
+                if (remErr) console.warn('Failed to remove old image:', remErr.message ?? remErr);
               }
             }
+          } catch (e) {
+            console.warn('Failed to delete old image (continuing):', e);
           }
-        } catch (e) {
-          console.warn('Failed to delete old image (continuing):', e);
-        }
 
-        const filePath = `${id}/${Date.now()}_${file.name}`;
-        const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
-        if (uploadError) throw uploadError;
-        const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(filePath);
-        imageUrl = publicData?.publicUrl ?? publicData?.publicURL ?? null;
-      }
+          const filePath = `${id}/${Date.now()}_${file.name}`;
+          const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
+          if (uploadError) throw uploadError;
+          const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+          imageUrl = publicData?.publicUrl ?? publicData?.publicURL ?? null;
+        }
 
       if (isEdit) {
         const res = await supabase
