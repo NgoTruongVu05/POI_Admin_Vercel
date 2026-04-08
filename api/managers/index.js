@@ -102,11 +102,11 @@ export default async function handler(req, res) {
       user_metadata: { role }
     });
 
-    if (createRes.error) {
-      // Include full error object for easier debugging (stringified).
+    if (createRes.error || (createRes?.status && createRes.status >= 400)) {
+      console.error('supabase.createUser response:', createRes);
       const errObj = {
-        message: createRes.error.message ?? 'Unknown error',
-        details: createRes.error
+        message: createRes.error?.message ?? createRes?.statusText ?? 'Unknown error',
+        details: createRes
       };
       return json(res, 400, { error: JSON.stringify(errObj) });
     }
@@ -120,10 +120,11 @@ export default async function handler(req, res) {
       .select('user_id,email,role,created_at,updated_at')
       .single();
 
-    if (upsertRes.error) {
+    if (upsertRes.error || (upsertRes?.status && upsertRes.status >= 400)) {
+      console.error('supabase.upsert response:', upsertRes);
       const errObj = {
-        message: upsertRes.error.message ?? 'Unknown error',
-        details: upsertRes.error
+        message: upsertRes.error?.message ?? upsertRes?.statusText ?? 'Unknown error',
+        details: upsertRes
       };
       return json(res, 400, { error: JSON.stringify(errObj) });
     }
