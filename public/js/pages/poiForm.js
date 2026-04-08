@@ -52,20 +52,21 @@ async function render(main) {
   const session = await getSession();
   const userId = session?.user?.id ?? null;
 
-  let values = { id: '', name: '', description: '', lat: '', lng: '' };
+  let values = { id: '', name: '', description: '', lat: '', lng: '', image: '' };
   let suggestedId = '';
   let loadError = '';
 
   if (isEdit) {
     try {
-      const res = await supabase.from('pois').select('id,name,description,lat,lng').eq('id', editId).limit(1).single();
+      const res = await supabase.from('pois').select('id,name,description,lat,lng,image').eq('id', editId).limit(1).single();
       if (res.error) throw res.error;
       values = {
         id: res.data.id,
         name: res.data.name ?? '',
         description: res.data.description ?? '',
         lat: String(res.data.lat ?? ''),
-        lng: String(res.data.lng ?? '')
+        lng: String(res.data.lng ?? ''),
+        image: res.data.image ?? ''
       };
     } catch {
       loadError = 'Không tìm thấy POI để sửa.';
@@ -144,6 +145,15 @@ async function render(main) {
           </div>
           <div class="text-[11px] text-slate-400 mt-2">Click lên bản đồ để tự điền Latitude/Longitude.</div>
         </div>
+        
+        <label class="block md:col-span-2">
+          <div class="text-sm font-semibold text-slate-700">Ảnh đại diện</div>
+          <input id="imageFile" name="imageFile" type="file" accept="image/*" class="mt-2 w-full" />
+          <div class="mt-2">
+            <img id="imagePreview" src="${escapeHtml(values.image)}" class="${values.image ? '' : 'hidden'} rounded-lg max-h-48" alt="Preview" />
+          </div>
+          <div class="mt-1 text-xs text-slate-500">Tải lên ảnh đại diện cho POI. Nếu sửa mà không chọn ảnh mới, ảnh cũ sẽ được giữ.</div>
+        </label>
       </div>
 
       <div class="mt-6 flex items-center justify-end gap-3">
@@ -161,6 +171,25 @@ async function render(main) {
   const errorBox = document.getElementById('errorBox');
   const submitBtn = document.getElementById('submitBtn');
   const idInput = isEdit ? null : document.getElementById('id');
+
+  const imageFileInput = document.getElementById('imageFile');
+  const imagePreview = document.getElementById('imagePreview');
+  if (imageFileInput) {
+    imageFileInput.addEventListener('change', () => {
+      const f = imageFileInput.files?.[0];
+      if (f) {
+        imagePreview.src = URL.createObjectURL(f);
+        imagePreview.classList.remove('hidden');
+      } else {
+        if (values.image) {
+          imagePreview.src = values.image;
+          imagePreview.classList.remove('hidden');
+        } else {
+          imagePreview.classList.add('hidden');
+        }
+      }
+    });
+  }
 
   // Map picker
   const L = await waitForGlobal('L', 5000);
@@ -196,18 +225,30 @@ async function render(main) {
 
     const lat = Number(latRaw);
     const lng = Number(lngRaw);
+    const file = imageFileInput?.files?.[0] ?? null;
 
     try {
+      // upload image if a new file was chosen
+      let imageUrl = values.image || null;
+      if (file) {
+        const bucket = 'poi-images';
+        const filePath = `${id}/${Date.now()}_${file.name}`;
+        const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
+        if (uploadError) throw uploadError;
+        const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+        imageUrl = publicData?.publicUrl ?? publicData?.publicURL ?? null;
+      }
+
       if (isEdit) {
         const res = await supabase
           .from('pois')
-          .update({ name, description: description || null, lat, lng })
+          .update({ name, description: description || null, lat, lng, image: imageUrl })
           .eq('id', id);
         if (res.error) throw res.error;
       } else {
         const res = await supabase
           .from('pois')
-          .insert({ id, name, description: description || null, lat, lng, user_id: userId });
+          .insert({ id, name, description: description || null, lat, lng, user_id: userId, image: imageUrl });
         if (res.error) throw res.error;
       }
 
