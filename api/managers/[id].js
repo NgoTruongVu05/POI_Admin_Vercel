@@ -102,12 +102,15 @@ export default async function handler(req, res) {
     // may contain non-auth identifiers (e.g. provider subject) which will cause
     // deleteUser to return NOT_FOUND. In that case try to resolve by email and
     // ensure the `user_roles` row is removed.
+    console.log('[managers][DELETE] attempt delete user_id=%s', userId);
     let del = await supabaseAdmin.auth.admin.deleteUser(userId);
 
     if (del.error) {
+      console.warn('[managers][DELETE] deleteUser returned error for id=%s: %o', userId, del.error);
       // If user not found, try to resolve a real auth id via the user_roles email
       const roleRow = await supabaseAdmin.from('user_roles').select('email').eq('user_id', userId).limit(1).maybeSingle();
       const email = roleRow?.data?.email ?? '';
+      console.log('[managers][DELETE] role row lookup for user_id=%s -> email=%s', userId, email || '<none>');
 
       // If we have an email, try to find auth user by email and delete by that id
       if (email) {
@@ -117,17 +120,22 @@ export default async function handler(req, res) {
           .eq('email', email)
           .limit(1);
 
+        if (findErr) console.warn('[managers][DELETE] auth.users lookup error for email=%s: %o', email, findErr);
+
         if (!findErr && Array.isArray(found) && found.length) {
           const realId = found[0].id;
+          console.log('[managers][DELETE] resolved auth id for email=%s -> %s', email, realId);
           // If the id is different, try deleting that one
           if (realId && realId !== userId) {
             const del2 = await supabaseAdmin.auth.admin.deleteUser(realId);
             if (!del2.error) {
+              console.log('[managers][DELETE] deleted resolved auth id=%s (original user_id=%s)', realId, userId);
               // ensure cleanup of user_roles
               await supabaseAdmin.from('user_roles').delete().eq('user_id', userId);
               await supabaseAdmin.from('user_roles').delete().eq('user_id', realId);
               return json(res, 200, { ok: true, notice: 'Deleted by resolved auth id' });
             }
+            console.warn('[managers][DELETE] failed to delete resolved auth id=%s: %o', realId, del2.error);
             // if del2.error, fall through to attempt cleanup of user_roles
           }
         }
@@ -135,10 +143,14 @@ export default async function handler(req, res) {
 
       // If we reach here the auth user could not be deleted (likely NOT_FOUND).
       // Remove the user_roles row to keep the list consistent and return success
-      await supabaseAdmin.from('user_roles').delete().eq('user_id', userId);
+      const delRole = await supabaseAdmin.from('user_roles').delete().eq('user_id', userId);
+      if (delRole.error) console.warn('[managers][DELETE] failed to delete user_roles for user_id=%s: %o', userId, delRole.error);
+      else console.log('[managers][DELETE] removed user_roles row for user_id=%s', userId);
+
       return json(res, 200, { ok: true, notice: 'Auth user not found; removed user_roles row' });
     }
 
+    console.log('[managers][DELETE] deleted auth user id=%s', userId);
     // user_roles row will be deleted by FK cascade; but ensure cleanup if not.
     await supabaseAdmin.from('user_roles').delete().eq('user_id', userId);
 

@@ -82,7 +82,40 @@ export default async function handler(req, res) {
         .order('created_at', { ascending: false });
 
       if (error) return json(res, 400, { error: error.message });
-      return json(res, 200, { data: data ?? [] });
+
+      // Resolve auth user id by email when possible to provide a safe id
+      // that can be used with auth.admin.deleteUser. This helps when
+      // user_roles.user_id contains provider subjects like "sin1::...".
+      const rows = Array.isArray(data) ? data : [];
+      console.log('[managers][GET] fetched %d user_roles rows', rows.length);
+      const enhanced = [];
+      for (const row of rows) {
+        const email = (row?.email ?? '').toString();
+        let auth_id = null;
+        if (email) {
+          try {
+            console.log('[managers][GET] resolving auth id for email=%s', email);
+            const { data: found, error: findErr } = await supabaseAdmin
+              .from('auth.users')
+              .select('id')
+              .eq('email', email)
+              .limit(1);
+            if (findErr) {
+              console.warn('[managers][GET] auth.users lookup error for email=%s: %o', email, findErr);
+            } else if (Array.isArray(found) && found.length) {
+              auth_id = found[0].id;
+              console.log('[managers][GET] resolved auth id for email=%s -> %s', email, auth_id);
+            } else {
+              console.log('[managers][GET] no auth user found for email=%s', email);
+            }
+          } catch (e) {
+            console.warn('[managers][GET] exception resolving auth id for email=%s: %o', email, e);
+          }
+        }
+        enhanced.push(Object.assign({}, row, { auth_id }));
+      }
+
+      return json(res, 200, { data: enhanced });
     }
 
     // POST: create manager
