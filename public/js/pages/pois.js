@@ -254,10 +254,12 @@ async function render(main) {
       const j = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(j?.error || 'Delete failed');
       window.location.reload();
-    } catch {
-      showFlash('Không thể xoá POI. Vui lòng thử lại.', 'error');
+    } catch (err) {
+      const message = (err?.message) ? err.message.toString() : 'Không thể xoá POI. Vui lòng thử lại.';
+      showFlash(message, 'error');
       confirmBtn.disabled = false;
-      closeDelete();
+      // keep modal open so user can see message and retry/inspect
+      console.warn('Delete POI error:', err);
     }
   });
 

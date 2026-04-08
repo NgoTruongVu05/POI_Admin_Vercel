@@ -106,6 +106,7 @@ async function render(main) {
       <div class="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">${escapeHtml(loadError)}</div>
     ` : ''}
 
+    <div id="flash" class="hidden px-5 py-4 text-sm"></div>
     <div id="errorBox" class="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700 hidden"></div>
 
     <form id="poiForm" class="mt-6 bg-white border border-slate-200 rounded-2xl p-6" autocomplete="off">
@@ -176,6 +177,19 @@ async function render(main) {
 
   const imageFileInput = document.getElementById('imageFile');
   const imagePreview = document.getElementById('imagePreview');
+  const flash = document.getElementById('flash');
+
+  function showFlash(message, type) {
+    if (!flash) return;
+    flash.classList.remove('hidden');
+    if (type === 'error') {
+      flash.className = 'px-5 py-4 text-sm text-rose-700 bg-rose-50 border-b border-rose-100';
+    } else {
+      flash.className = 'px-5 py-4 text-sm text-emerald-700 bg-emerald-50 border-b border-emerald-100';
+    }
+    flash.textContent = message;
+    setTimeout(() => { flash.classList.add('hidden'); }, 6000);
+  }
   if (imageFileInput) {
     imageFileInput.addEventListener('change', () => {
       const f = imageFileInput.files?.[0];
@@ -267,13 +281,20 @@ async function render(main) {
           if (oldImage && oldImage !== imageUrl) {
             try {
               const token = (session?.access_token ?? '') || '';
-              await fetch('/api/storage/remove', {
+              const resp = await fetch('/api/storage/remove', {
                 method: 'POST',
                 headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { Authorization: `Bearer ${token}` } : {}),
                 body: JSON.stringify({ url: oldImage, poiId: id })
               });
+              const j = await resp.json().catch(() => ({}));
+              if (!resp.ok) {
+                const m = j?.error || j?.message || 'Failed to remove old image';
+                console.warn('Server failed to remove old image:', m);
+                showFlash(`Xoá ảnh cũ thất bại: ${m}`, 'error');
+              }
             } catch (e) {
               console.warn('Failed to request server to remove old image:', e);
+              showFlash('Không thể kết nối server để xóa ảnh cũ.', 'error');
             }
           }
         }
