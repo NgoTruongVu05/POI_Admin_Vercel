@@ -27,7 +27,7 @@ async function render(main) {
 
   let poi = null;
   try {
-    const res = await supabase.from('pois').select('id,name,description,lat,lng').eq('id', id).limit(1).single();
+    const res = await supabase.from('pois').select('id,name,description,lat,lng,image').eq('id', id).limit(1).single();
     if (res.error) throw res.error;
     poi = res.data;
   } catch {
@@ -62,8 +62,15 @@ async function render(main) {
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6">
         <section class="lg:col-span-5">
           <div class="bg-white border border-slate-200 rounded-2xl p-6">
-            <div class="text-sm text-slate-500">Mã POI</div>
-            <div class="mt-1 font-semibold">${escapeHtml(poi.id)}</div>
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <div class="text-sm text-slate-500">Mã POI</div>
+                <div class="mt-1 font-semibold">${escapeHtml(poi.id)}</div>
+              </div>
+              <div class="flex-shrink-0">
+                ${poi.image ? `<img src="${escapeHtml(poi.image)}" alt="Ảnh POI" class="w-32 h-32 object-cover rounded-lg border border-slate-200" />` : ''}
+              </div>
+            </div>
 
             <div class="mt-5 text-sm text-slate-500">Tên POI</div>
             <div class="mt-1 font-semibold">${escapeHtml(poi.name ?? '')}</div>

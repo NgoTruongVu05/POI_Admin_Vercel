@@ -118,6 +118,15 @@ async function render(main) {
           </label>
         `}
 
+        <label class="block">
+          <div class="text-sm font-semibold text-slate-700">Ảnh đại diện</div>
+          <input id="imageFile" name="imageFile" type="file" accept="image/*" class="mt-2 w-full" />
+          <div class="mt-2">
+            <img id="imagePreview" src="${escapeHtml(values.image)}" class="${values.image ? '' : 'hidden'} rounded-lg max-h-48" alt="Preview" />
+          </div>
+          <div class="mt-1 text-xs text-slate-500">Tải lên ảnh đại diện cho POI. Nếu sửa mà không chọn ảnh mới, ảnh cũ sẽ được giữ.</div>
+        </label>
+
         <label class="block ${isEdit ? 'md:col-span-2' : 'md:col-span-2'}">
           <div class="text-sm font-semibold text-slate-700">Tên POI <span class="text-rose-600">*</span></div>
           <input id="name" name="name" value="${escapeHtml(values.name)}" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="Nhập tên địa điểm..." required maxlength="200" />
@@ -146,14 +155,7 @@ async function render(main) {
           <div class="text-[11px] text-slate-400 mt-2">Click lên bản đồ để tự điền Latitude/Longitude.</div>
         </div>
         
-        <label class="block md:col-span-2">
-          <div class="text-sm font-semibold text-slate-700">Ảnh đại diện</div>
-          <input id="imageFile" name="imageFile" type="file" accept="image/*" class="mt-2 w-full" />
-          <div class="mt-2">
-            <img id="imagePreview" src="${escapeHtml(values.image)}" class="${values.image ? '' : 'hidden'} rounded-lg max-h-48" alt="Preview" />
-          </div>
-          <div class="mt-1 text-xs text-slate-500">Tải lên ảnh đại diện cho POI. Nếu sửa mà không chọn ảnh mới, ảnh cũ sẽ được giữ.</div>
-        </label>
+        
       </div>
 
       <div class="mt-6 flex items-center justify-end gap-3">
@@ -232,6 +234,23 @@ async function render(main) {
       let imageUrl = values.image || null;
       if (file) {
         const bucket = 'poi-images';
+
+        // If there is an existing image URL, attempt to delete the old file from storage
+        try {
+          if (values.image) {
+            const m = String(values.image).match(/\/storage\/v1\/object\/public\/(.*?)\/(.*)$/);
+            if (m) {
+              const oldBucket = m[1];
+              const oldPath = decodeURIComponent(m[2]);
+              if (oldBucket === bucket && oldPath) {
+                await supabase.storage.from(bucket).remove([oldPath]);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to delete old image (continuing):', e);
+        }
+
         const filePath = `${id}/${Date.now()}_${file.name}`;
         const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
         if (uploadError) throw uploadError;

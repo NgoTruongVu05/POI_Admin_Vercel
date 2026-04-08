@@ -245,9 +245,25 @@ async function render(main) {
 
     confirmBtn.disabled = true;
     try {
+      // Delete image from storage (if present)
+      try {
+        const p = await supabase.from('pois').select('image').eq('id', pendingDeleteId).limit(1).single();
+        if (!p.error && p.data?.image) {
+          const img = String(p.data.image);
+          const m = img.match(/\/storage\/v1\/object\/public\/(.*?)\/(.*)$/);
+          if (m) {
+            const bucket = m[1];
+            const path = decodeURIComponent(m[2]);
+            try { await supabase.storage.from(bucket).remove([path]); } catch (e) { console.warn('Failed to remove image:', e); }
+          }
+        }
+      } catch (e) {
+        console.warn('Error checking/removing image before delete:', e);
+      }
+
       // Delete all translations for this POI
       await supabase.from('poitranslations').delete().eq('poi_id', pendingDeleteId);
-      
+
       const res = await supabase.from('pois').delete().eq('id', pendingDeleteId);
       if (res.error) throw res.error;
       window.location.reload();
