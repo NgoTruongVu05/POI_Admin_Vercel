@@ -89,11 +89,11 @@ export default async function handler(req, res) {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     const email = (body.email ?? '').toString().trim();
     const password = (body.password ?? '').toString();
-    const role = (body.role ?? 'owner').toString();
+    const role = (body.role ?? 'manager').toString();
 
     if (!email || !password) return json(res, 400, { error: 'Email and password are required.' });
     if (password.length < 6) return json(res, 400, { error: 'Password must be at least 6 characters.' });
-    if (!['admin', 'owner'].includes(role)) return json(res, 400, { error: 'Invalid role.' });
+    if (!['admin', 'manager'].includes(role)) return json(res, 400, { error: 'Invalid role.' });
 
     const createRes = await supabaseAdmin.auth.admin.createUser({
       email,

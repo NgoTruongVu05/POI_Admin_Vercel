@@ -67,7 +67,7 @@ with check (true);
 create table if not exists public.user_roles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
-  role text not null default 'owner' check (role in ('admin', 'owner')),
+  role text not null default 'manager' check (role in ('admin', 'manager')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

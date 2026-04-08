@@ -55,7 +55,7 @@ async function render(main, user) {
               <div class="md:col-span-1">
                 <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Role</label>
                 <select id="role" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
-                  <option value="owner" selected>Chủ quán (owner)</option>
+                  <option value="manager" selected>Chủ quán</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
@@ -200,15 +200,15 @@ async function render(main, user) {
         const created = r.created_at ? new Date(r.created_at).toLocaleString() : '';
         const safeEmail = escapeHtml((r.email ?? '').toString());
         const safeId = escapeHtml((r.user_id ?? '').toString());
-        const selectedOwner = r.role === 'owner' ? 'selected' : '';
+        const selectedManager = r.role === 'manager' ? 'selected' : '';
         const selectedAdmin = r.role === 'admin' ? 'selected' : '';
 
         return `
           <tr data-id="${safeId}">
             <td class="py-3 pr-4 text-slate-800">${safeEmail}</td>
             <td class="py-3 pr-4">
-              <select class="roleSel w-44 px-3 py-2 bg-white border border-slate-200 rounded-xl">
-                <option value="owner" ${selectedOwner}>owner</option>
+                <select class="roleSel w-44 px-3 py-2 bg-white border border-slate-200 rounded-xl">
+                <option value="manager" ${selectedManager}>manager</option>
                 <option value="admin" ${selectedAdmin}>admin</option>
               </select>
             </td>

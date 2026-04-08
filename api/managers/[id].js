@@ -80,7 +80,7 @@ export default async function handler(req, res) {
     if (req.method === 'PATCH') {
       const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
       const role = (body.role ?? '').toString();
-      if (!['admin', 'owner'].includes(role)) return json(res, 400, { error: 'Invalid role.' });
+      if (!['admin', 'manager'].includes(role)) return json(res, 400, { error: 'Invalid role.' });
 
       const upd = await supabaseAdmin.auth.admin.updateUserById(userId, {
         user_metadata: { role }
