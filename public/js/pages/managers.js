@@ -219,8 +219,8 @@ async function render(main, user) {
         const safeRoleHtml = escapeHtml(safeRole || '—');
 
         const actionHtml = safeRole === 'admin'
-          ? `<div class="py-3 pr-0 text-right"><span class="text-xs text-slate-400">—</span></div>`
-          : `<div class="py-3 pr-0 text-right"><button class="delBtn inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"><i class="bi bi-trash"></i><span>Xoá</span></button></div>`;
+          ? `<td class="py-3 pr-0 text-right"><span class="text-xs text-slate-400">—</span></td>`
+          : `<td class="py-3 pr-0 text-right"><button class="delBtn inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"><i class="bi bi-trash"></i><span>Xoá</span></button></td>`;
 
         return `
           <tr data-id="${safeId}">
