@@ -104,8 +104,57 @@ export default async function handler(req, res) {
 
     if (createRes.error || (createRes?.status && createRes.status >= 400)) {
       console.error('supabase.createUser response:', createRes);
+      const msg = createRes.error?.message ?? createRes?.statusText ?? '';
+
+      // If email already exists, try to find the user and update metadata + user_roles
+      if (createRes.error?.code === 'email_exists' || /already been registered/i.test(msg) || createRes.status === 422) {
+        try {
+          const { data: found, error: findErr } = await supabaseAdmin
+            .from('auth.users')
+            .select('id,email')
+            .eq('email', email)
+            .limit(1);
+
+          if (findErr) {
+            console.error('find existing user error:', findErr);
+            return json(res, 400, { error: msg || 'Email already exists' });
+          }
+
+          const existing = Array.isArray(found) && found.length ? found[0] : null;
+          if (!existing) {
+            return json(res, 400, { error: msg || 'Email already exists' });
+          }
+
+          // Update user metadata role
+          const upd = await supabaseAdmin.auth.admin.updateUserById(existing.id, {
+            user_metadata: { role }
+          });
+          if (upd.error) {
+            console.error('update existing user metadata error:', upd);
+            return json(res, 400, { error: upd.error.message ?? 'Cannot update existing user metadata' });
+          }
+
+          // Upsert into user_roles
+          const upsertRes2 = await supabaseAdmin
+            .from('user_roles')
+            .upsert({ user_id: existing.id, email, role }, { onConflict: 'user_id' })
+            .select('user_id,email,role,created_at,updated_at')
+            .single();
+
+          if (upsertRes2.error || (upsertRes2?.status && upsertRes2.status >= 400)) {
+            console.error('supabase.upsert response (existing user):', upsertRes2);
+            return json(res, 400, { error: upsertRes2.error?.message ?? 'Cannot upsert user_roles' });
+          }
+
+          return json(res, 200, { data: upsertRes2.data, notice: 'Existing user updated with new role' });
+        } catch (e) {
+          console.error('handle existing email exception:', e);
+          return json(res, 500, { error: (e?.message ?? 'Server error').toString() });
+        }
+      }
+
       const errObj = {
-        message: createRes.error?.message ?? createRes?.statusText ?? 'Unknown error',
+        message: msg || 'Unknown error',
         details: createRes
       };
       return json(res, 400, { error: JSON.stringify(errObj) });
