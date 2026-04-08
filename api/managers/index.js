@@ -102,7 +102,14 @@ export default async function handler(req, res) {
       user_metadata: { role }
     });
 
-    if (createRes.error) return json(res, 400, { error: createRes.error.message });
+    if (createRes.error) {
+      // Include full error object for easier debugging (stringified).
+      const errObj = {
+        message: createRes.error.message ?? 'Unknown error',
+        details: createRes.error
+      };
+      return json(res, 400, { error: JSON.stringify(errObj) });
+    }
 
     const userId = createRes.data?.user?.id;
     if (!userId) return json(res, 500, { error: 'User created but missing id.' });
@@ -113,7 +120,13 @@ export default async function handler(req, res) {
       .select('user_id,email,role,created_at,updated_at')
       .single();
 
-    if (upsertRes.error) return json(res, 400, { error: upsertRes.error.message });
+    if (upsertRes.error) {
+      const errObj = {
+        message: upsertRes.error.message ?? 'Unknown error',
+        details: upsertRes.error
+      };
+      return json(res, 400, { error: JSON.stringify(errObj) });
+    }
 
     return json(res, 201, { data: upsertRes.data });
   } catch (err) {
