@@ -221,27 +221,33 @@ async function render(main) {
         throw langError;
       }
 
-      // Translate description to active languages and save to poitranslations
-      await Promise.all(
-        activeLanguages.map(async (lang) => {
-          try {
-            let translatedDesc = description;
+      // Only translate when adding a new POI, or when editing and
+      // the description was actually changed by the user.
+      const needTranslate = !isEdit || (isEdit && description !== values.description);
 
-            if (description && lang.code !== 'vi') {
-              translatedDesc = await translateText(description, 'vi', lang.code);
+      if (needTranslate) {
+        // Translate description to active languages and save to poitranslations
+        await Promise.all(
+          activeLanguages.map(async (lang) => {
+            try {
+              let translatedDesc = description;
+
+              if (description && lang.code !== 'vi') {
+                translatedDesc = await translateText(description, 'vi', lang.code);
+              }
+
+              await supabase.from('poitranslations').upsert({
+                poi_id: id,
+                lang_code: lang.code,
+                description: translatedDesc || null
+              }, { onConflict: 'poi_id,lang_code' });
+
+            } catch (e) {
+              console.error(`Lỗi ngôn ngữ ${lang.code}`, e);
             }
-
-            await supabase.from('poitranslations').upsert({
-              poi_id: id,
-              lang_code: lang.code,
-              description: translatedDesc || null
-            }, { onConflict: 'poi_id,lang_code' });
-
-          } catch (e) {
-            console.error(`Lỗi ngôn ngữ ${lang.code}`, e);
-          }
-        })
-      );
+          })
+        );
+      }
 
       window.location.href = '/pois';
     } catch (err) {
