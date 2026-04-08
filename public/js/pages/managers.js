@@ -219,14 +219,14 @@ async function render(main, user) {
         const safeRoleHtml = escapeHtml(safeRole || '—');
 
         const actionHtml = safeRole === 'admin'
-          ? `<td class="py-3 pr-0 text-right"><span class="text-xs text-slate-400">—</span></td>`
-          : `<td class="py-3 pr-0 text-right"><button class="delBtn inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"><i class="bi bi-trash"></i><span>Xoá</span></button></td>`;
+          ? `<td class="py-3 pr-0 text-right align-middle w-28"><span class="text-xs text-slate-400">—</span></td>`
+          : `<td class="py-3 pr-0 text-right align-middle w-28"><button class="delBtn inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"><i class="bi bi-trash"></i><span>Xoá</span></button></td>`;
 
         return `
           <tr data-id="${safeId}">
-            <td class="py-3 pr-4 text-slate-800">${safeEmail}</td>
-            <td class="py-3 pr-4 text-slate-700 font-medium">${safeRoleHtml}</td>
-            <td class="py-3 pr-4 text-slate-500">${escapeHtml(created)}</td>
+            <td class="py-3 pr-4 align-middle text-slate-800">${safeEmail}</td>
+            <td class="py-3 pr-4 align-middle text-slate-700 font-medium">${safeRoleHtml}</td>
+            <td class="py-3 pr-4 align-middle text-slate-500">${escapeHtml(created)}</td>
             ${actionHtml}
           </tr>
         `;
