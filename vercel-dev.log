@@ -1,0 +1,51 @@
+> [debug] [2026-04-08T11:14:50.445Z] Found config in file "D:\1-Study\Coding\Website\POI_Admin_Vercel\vercel.json"
+> [debug] [2026-04-08T11:14:50.446Z] Vercel CLI 50.41.0
+> [debug] [2026-04-08T11:14:50.449Z] Agent/TTY/nonInteractive: isAgent=false agentName=none stdin.isTTY=true --non-interactive=false explicitFalse=false => nonInteractive=false
+> [debug] [2026-04-08T11:14:50.449Z] user supplied known subcommand: "dev"
+> [debug] [2026-04-08T11:14:50.720Z] Spinner invoked (Retrieving project…) with a 1000ms delay
+> [debug] [2026-04-08T11:14:50.721Z] Valid access token, skipping token refresh.
+> [debug] [2026-04-08T11:14:50.743Z] #1 → GET https://api.vercel.com/teams/team_nxIHUEyOO6dABIMVAIDmxZdv
+> [debug] [2026-04-08T11:14:50.746Z] #2 → GET https://api.vercel.com/v9/projects/prj_k4ncRzIU77vcmFi7MpCml6h9uES2?teamId=team_nxIHUEyOO6dABIMVAIDmxZdv
+> [debug] [2026-04-08T11:14:51.405Z] #1 ← 200 OK: sfo1::d87zp-1775646891409-dcee3663560e [661ms]
+> [debug] [2026-04-08T11:14:51.448Z] #2 ← 200 OK: sfo1::6ns9r-1775646891411-8d9424cd9fbb [702ms]
+> [debug] [2026-04-08T11:14:51.481Z] Fetching Environment Variables of prj_k4ncRzIU77vcmFi7MpCml6h9uES2 and target undefined
+> [debug] [2026-04-08T11:14:51.482Z] #3 → GET https://api.vercel.com/v3/env/pull/prj_k4ncRzIU77vcmFi7MpCml6h9uES2?source=vercel-cli%3Adev&teamId=team_nxIHUEyOO6dABIMVAIDmxZdv
+> [debug] [2026-04-08T11:14:51.754Z] #3 ← 200 OK: sfo1::bhdl7-1775646891733-9333b9ce6e3f [272ms]
+> [debug] [2026-04-08T11:14:51.798Z] VERCEL_OIDC_TOKEN expires in 43199s; refreshing in 42299s
+> [debug] [2026-04-08T11:14:51.805Z] Reading `package.json` file
+> [debug] [2026-04-08T11:14:51.805Z] Reading `vercel.json` file
+> [debug] [2026-04-08T11:14:51.823Z] Locating files D:\1-Study\Coding\Website\POI_Admin_Vercel
+> [debug] [2026-04-08T11:14:51.824Z] Ignoring D:\1-Study\Coding\Website\POI_Admin_Vercel\.env.local
+> [debug] [2026-04-08T11:14:51.824Z] Ignoring D:\1-Study\Coding\Website\POI_Admin_Vercel\.git
+> [debug] [2026-04-08T11:14:51.825Z] Ignoring D:\1-Study\Coding\Website\POI_Admin_Vercel\.gitignore
+> [debug] [2026-04-08T11:14:51.825Z] Ignoring D:\1-Study\Coding\Website\POI_Admin_Vercel\.vercel
+> [debug] [2026-04-08T11:14:51.825Z] Ignoring D:\1-Study\Coding\Website\POI_Admin_Vercel\node_modules
+> [debug] [2026-04-08T11:14:51.831Z] Locating files D:\1-Study\Coding\Website\POI_Admin_Vercel [8ms]
+> [debug] [2026-04-08T11:14:52.242Z] Imported Builder "@vercel/node" from "C:\Users\ASUS\AppData\Roaming\npm\node_modules\vercel\node_modules\@vercel\node"
+> [debug] [2026-04-08T11:14:52.523Z] Imported Builder "@vercel/static-build" from "C:\Users\ASUS\AppData\Roaming\npm\node_modules\vercel\node_modules\@vercel\static-build"
+> [debug] [2026-04-08T11:14:52.524Z] Resolved builders: "@vercel/node => 5.7.1, @vercel/static-build => 2.9.9"
+> [debug] [2026-04-08T11:14:52.529Z] Adding build match for "api/managers/[id].js" with "@vercel/node"
+> [debug] [2026-04-08T11:14:52.529Z] Adding build match for "api/managers/index.js" with "@vercel/node"
+> [debug] [2026-04-08T11:14:52.529Z] Adding build match for "api/pois/[id].js" with "@vercel/node"
+> [debug] [2026-04-08T11:14:52.529Z] Adding build match for "api/storage/remove.js" with "@vercel/node"
+> [debug] [2026-04-08T11:14:52.529Z] Adding build match for "api/test-health.js" with "@vercel/node"
+> [debug] [2026-04-08T11:14:52.529Z] Adding build match for "package.json" with "@vercel/static-build"
+> Creating initial build
+> Building @vercel/static-build:package.json
+> [debug] [2026-04-08T11:14:52.531Z] Using `@vercel/static-build@2.9.9`
+> [debug] [2026-04-08T11:14:52.532Z] Creating build process for "package.json"
+Running "npm run build"
+
+> build
+> node scripts/build.mjs
+
+[build] Wrote public/env.js
+> Built @vercel/static-build:package.json [1s]
+> Success! Build completed
+> Ready! Available at http://localhost:3000
+> [debug] [2026-04-08T11:14:53.638Z] OIDC token refresh was aborted
+> [debug] [2026-04-08T11:14:54.749Z] Telemetry event tracked
+> [debug] [2026-04-08T11:14:54.776Z] Telemetry subprocess exited with code 0
+> [debug] [2026-04-08T11:14:55.665Z] Telemetry subprocess killed due to timeout
+> [debug] [2026-04-08T11:16:00.221Z] Build process for "package.json" exited with 3221225786
+^C
