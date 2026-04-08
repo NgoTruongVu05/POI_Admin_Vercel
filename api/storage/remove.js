@@ -76,8 +76,13 @@ function parseStorageUrl(u) {
 
 export default async function handler(req, res) {
   try {
+    // quick health-check to confirm route exists on deployment
+    if (req.method === 'GET') {
+      return json(res, 200, { ok: true, route: '/api/storage/remove' });
+    }
+
     if (req.method !== 'POST') {
-      res.setHeader('Allow', 'POST');
+      res.setHeader('Allow', 'POST, GET');
       return json(res, 405, { error: 'Method Not Allowed' });
     }
 
