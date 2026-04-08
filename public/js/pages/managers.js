@@ -233,31 +233,56 @@ async function render(main, user) {
       // Role column is display-only; no edit listeners.
 
       tbody.querySelectorAll('.delBtn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
+        btn.addEventListener('click', (e) => {
           const tr = e.target.closest('tr');
           const id = tr?.getAttribute('data-id') || '';
-
           if (!id) return;
-          if (!confirm('Xoá tài khoản này?')) return;
-
-          try {
-            const token = await getAccessToken();
-            const res = await fetch(`/api/managers/${encodeURIComponent(id)}`, {
-              method: 'DELETE',
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            });
-
-            const json = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error((json?.error ?? 'Không thể xoá.').toString());
-
-            await loadList();
-          } catch (err) {
-            listError.textContent = (err?.message ?? 'Không thể xoá.').toString();
-            listError.classList.remove('hidden');
-          }
+          openDelete(id);
         });
+      });
+
+      // Modal handlers
+      const modal = document.getElementById('deleteModal');
+      const cancelBtn = document.getElementById('deleteCancel');
+      const confirmBtn = document.getElementById('deleteConfirm');
+      let pendingDeleteId = '';
+
+      function openDelete(id) {
+        pendingDeleteId = id;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+
+      function closeDelete() {
+        pendingDeleteId = '';
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+
+      cancelBtn.addEventListener('click', () => closeDelete());
+      modal.addEventListener('click', (e) => { if (e.target === modal) closeDelete(); });
+
+      confirmBtn.addEventListener('click', async () => {
+        if (!pendingDeleteId) return;
+        confirmBtn.disabled = true;
+        try {
+          const token = await getAccessToken();
+          const res = await fetch(`/api/managers/${encodeURIComponent(pendingDeleteId)}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error((json?.error ?? 'Không thể xoá.').toString());
+
+          await loadList();
+          closeDelete();
+        } catch (err) {
+          listError.textContent = (err?.message ?? 'Không thể xoá.').toString();
+          listError.classList.remove('hidden');
+          confirmBtn.disabled = false;
+          closeDelete();
+        }
       });
     } catch (err) {
       listError.textContent = (err?.message ?? 'Không thể tải danh sách.').toString();
