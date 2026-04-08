@@ -62,8 +62,8 @@ function getAdminClient() {
 
 export default async function handler(req, res) {
   try {
-    if (req.method !== 'GET' && req.method !== 'POST') {
-      res.setHeader('Allow', 'GET, POST');
+    if (req.method !== 'GET' && req.method !== 'POST' && req.method !== 'DELETE') {
+      res.setHeader('Allow', 'GET, POST, DELETE');
       return json(res, 405, { error: 'Method Not Allowed' });
     }
 
@@ -116,6 +116,55 @@ export default async function handler(req, res) {
       }
 
       return json(res, 200, { data: enhanced });
+    }
+
+    if (req.method === 'DELETE') {
+      // Allow delete by email via query or body. This is resilient when
+      // user_roles.user_id doesn't match an auth.users id (eg provider subjects).
+      const queryEmail = (req.query?.email ?? '').toString();
+      const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+      const email = (body.email ?? queryEmail ?? '').toString().trim();
+
+      if (!email) return json(res, 400, { error: 'Missing email parameter.' });
+
+      console.log('[managers][DELETE-by-email] attempt delete for email=%s', email);
+
+      // Find auth user by email
+      const { data: found, error: findErr } = await supabaseAdmin
+        .from('auth.users')
+        .select('id')
+        .eq('email', email)
+        .limit(1);
+
+      if (findErr) {
+        console.warn('[managers][DELETE-by-email] auth.users lookup error for email=%s: %o', email, findErr);
+      }
+
+      if (Array.isArray(found) && found.length) {
+        const authId = found[0].id;
+        console.log('[managers][DELETE-by-email] resolved auth id=%s for email=%s', authId, email);
+        const del = await supabaseAdmin.auth.admin.deleteUser(authId);
+        if (del.error) {
+          console.warn('[managers][DELETE-by-email] deleteUser error for id=%s: %o', authId, del.error);
+          // still attempt to remove user_roles row
+          const delRole = await supabaseAdmin.from('user_roles').delete().eq('email', email);
+          if (delRole.error) console.warn('[managers][DELETE-by-email] failed to delete user_roles for email=%s: %o', email, delRole.error);
+          return json(res, 200, { ok: true, notice: 'Auth delete failed; removed user_roles row if present' });
+        }
+
+        // cleanup user_roles for both possible ids
+        await supabaseAdmin.from('user_roles').delete().eq('email', email);
+        return json(res, 200, { ok: true });
+      }
+
+      // No auth user found; remove user_roles row by email and return success
+      const delRole = await supabaseAdmin.from('user_roles').delete().eq('email', email);
+      if (delRole.error) {
+        console.warn('[managers][DELETE-by-email] failed to delete user_roles for email=%s: %o', email, delRole.error);
+        return json(res, 500, { error: delRole.error.message ?? 'Failed to delete user_roles' });
+      }
+
+      return json(res, 200, { ok: true, notice: 'Auth user not found; removed user_roles row' });
     }
 
     // POST: create manager

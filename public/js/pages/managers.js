@@ -225,7 +225,7 @@ async function render(main, user) {
           : `<td class="py-3 pr-0 text-right align-middle w-28"><button class="delBtn inline-flex items-center gap-2 whitespace-nowrap rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"><i class="bi bi-trash"></i><span>Xoá</span></button></td>`;
 
         return `
-          <tr data-id="${safeId}">
+          <tr data-id="${safeId}" data-email="${escapeHtml((r.email ?? '').toString())}">
             <td class="py-3 pr-4 align-middle text-slate-800">${safeEmail}</td>
             <td class="py-3 pr-4 align-middle text-slate-700 font-medium">${safeRoleHtml}</td>
             <td class="py-3 pr-4 align-middle text-slate-500">${escapeHtml(created)}</td>
@@ -239,8 +239,10 @@ async function render(main, user) {
         btn.addEventListener('click', (e) => {
           const tr = e.target.closest('tr');
           const id = tr?.getAttribute('data-id') || '';
-          if (!id) return;
-          openDelete(id);
+          const email = tr?.getAttribute('data-email') || '';
+          if (!email && !id) return;
+          // prefer email-based delete when available
+          openDelete(email || id);
         });
       });
 
@@ -249,9 +251,17 @@ async function render(main, user) {
       const cancelBtn = document.getElementById('deleteCancel');
       const confirmBtn = document.getElementById('deleteConfirm');
       let pendingDeleteId = '';
+      let pendingDeleteEmail = '';
 
-      function openDelete(id) {
-        pendingDeleteId = id;
+      function openDelete(idOrEmail) {
+        // Accept either resolved auth id or email; prefer email path
+        if (idOrEmail.includes('@')) {
+          pendingDeleteEmail = idOrEmail;
+          pendingDeleteId = '';
+        } else {
+          pendingDeleteId = idOrEmail;
+          pendingDeleteEmail = '';
+        }
         modal.classList.remove('hidden');
         modal.classList.add('flex');
       }
@@ -266,13 +276,17 @@ async function render(main, user) {
       modal.addEventListener('click', (e) => { if (e.target === modal) closeDelete(); });
 
       confirmBtn.addEventListener('click', async () => {
-        if (!pendingDeleteId) return;
+        if (!pendingDeleteId && !pendingDeleteEmail) return;
         confirmBtn.disabled = true;
         try {
           const token = await getAccessToken();
-          const res = await fetch(`/api/managers/${encodeURIComponent(pendingDeleteId)}`, {
+          let url = '/api/managers';
+          if (pendingDeleteEmail) url += `?email=${encodeURIComponent(pendingDeleteEmail)}`;
+          else url += `/${encodeURIComponent(pendingDeleteId)}`;
+
+          const res = await fetch(url, {
             method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
           });
 
           const text = await res.text().catch(() => '');
