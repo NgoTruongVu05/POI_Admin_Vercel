@@ -253,7 +253,14 @@ async function render(main) {
       });
       const j = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(j?.error || 'Delete failed');
-      window.location.reload();
+      // Success: close modal and show success message instead of immediate reload
+      closeDelete();
+      showFlash(j?.notice || 'Xoá POI thành công.', 'success');
+      // Optionally remove the deleted row from the list to reflect UI immediately
+      try {
+        const row = poiList.querySelector(`.poi-row[data-id="${pendingDeleteId}"]`);
+        if (row) row.remove();
+      } catch (e) { /* ignore */ }
     } catch (err) {
       const message = (err?.message) ? err.message.toString() : 'Không thể xoá POI. Vui lòng thử lại.';
       showFlash(message, 'error');
