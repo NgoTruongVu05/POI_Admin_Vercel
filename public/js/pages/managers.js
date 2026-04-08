@@ -103,6 +103,17 @@ async function render(main, user) {
         </div>
       </div>
     </div>
+
+    <div id="deleteModal" class="fixed inset-0 z-[9999] hidden items-center justify-center bg-slate-900/40 px-4">
+      <div class="w-full max-w-md rounded-2xl bg-white border border-slate-200 p-6">
+        <div class="text-lg font-semibold">Xoá quản lý</div>
+        <div class="mt-2 text-sm text-slate-600">Bạn có chắc muốn xóa tài khoản này?</div>
+        <div class="mt-6 flex items-center justify-end gap-3">
+          <button id="deleteCancel" type="button" class="inline-flex items-center rounded-xl bg-white border border-slate-200 text-slate-700 px-4 py-2 text-sm font-semibold hover:bg-slate-50 transition">Huỷ</button>
+          <button id="deleteConfirm" type="button" class="inline-flex items-center rounded-xl bg-rose-600 text-white px-4 py-2 text-sm font-semibold hover:bg-rose-700 transition">Xoá</button>
+        </div>
+      </div>
+    </div>
   `;
 
   if (role !== 'admin') {
