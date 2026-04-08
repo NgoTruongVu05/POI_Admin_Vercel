@@ -81,15 +81,37 @@ export default async function handler(req, res) {
       return json(res, 405, { error: 'Method Not Allowed' });
     }
 
-    const admin = await requireAdmin(req);
-    if (!admin.ok) return json(res, admin.status, { error: admin.message });
+    // Authenticate user (admin or manager). Managers may delete only their own POIs.
+    const url = getEnv('SUPABASE_URL');
+    const anonKey = getEnv('SUPABASE_ANON_KEY');
+    const token = getBearerToken(req);
+    if (!url || !anonKey) return json(res, 500, { error: 'Missing SUPABASE_URL or SUPABASE_ANON_KEY.' });
+    if (!token) return json(res, 401, { error: 'Missing Authorization Bearer token.' });
+
+    const authed = createClient(url, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { headers: { Authorization: `Bearer ${token}` } }
+    });
+
+    const { data: userData, error: userErr } = await authed.auth.getUser();
+    if (userErr) return json(res, 401, { error: userErr.message || 'Invalid token.' });
+    const authedUserId = (userData?.user?.id ?? '').toString();
+    const role = (userData?.user?.user_metadata?.role ?? '').toString();
 
     const adminClient = getAdminClient();
     if (!adminClient.ok) return json(res, adminClient.status, { error: adminClient.message });
-
     const { supabaseAdmin } = adminClient;
+
     const id = (req.query?.id ?? '').toString();
     if (!id) return json(res, 400, { error: 'Missing id.' });
+
+    if (role === 'manager') {
+      // ensure the manager owns this POI
+      const pcheck = await supabaseAdmin.from('pois').select('user_id').eq('id', id).limit(1).single();
+      if (pcheck.error) return json(res, 404, { error: 'POI not found.' });
+      const ownerId = (pcheck.data?.user_id ?? '').toString();
+      if (ownerId !== authedUserId) return json(res, 403, { error: 'Forbidden: not owner of POI.' });
+    }
 
     // fetch image URL
     const p = await supabaseAdmin.from('pois').select('image').eq('id', id).limit(1).single();

@@ -81,18 +81,42 @@ export default async function handler(req, res) {
       return json(res, 405, { error: 'Method Not Allowed' });
     }
 
-    const admin = await requireAdmin(req);
-    if (!admin.ok) return json(res, admin.status, { error: admin.message });
+    // Authenticate user (admin or manager). Managers may remove images only for POIs they own.
+    const url = getEnv('SUPABASE_URL');
+    const anonKey = getEnv('SUPABASE_ANON_KEY');
+    const token = getBearerToken(req);
+    if (!url || !anonKey) return json(res, 500, { error: 'Missing SUPABASE_URL or SUPABASE_ANON_KEY.' });
+    if (!token) return json(res, 401, { error: 'Missing Authorization Bearer token.' });
+
+    const authed = createClient(url, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { headers: { Authorization: `Bearer ${token}` } }
+    });
+
+    const { data: userData, error: userErr } = await authed.auth.getUser();
+    if (userErr) return json(res, 401, { error: userErr.message || 'Invalid token.' });
+    const authedUserId = (userData?.user?.id ?? '').toString();
+    const role = (userData?.user?.user_metadata?.role ?? '').toString();
 
     const adminClient = getAdminClient();
     if (!adminClient.ok) return json(res, adminClient.status, { error: adminClient.message });
-
     const { supabaseAdmin } = adminClient;
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-    const url = (body?.url ?? '').toString();
-    if (!url) return json(res, 400, { error: 'Missing url' });
 
-    const parsed = parseStorageUrl(url);
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+    const urlToRemove = (body?.url ?? '').toString();
+    const poiId = (body?.poiId ?? '').toString();
+    if (!urlToRemove) return json(res, 400, { error: 'Missing url' });
+
+    // if manager, poiId must be provided and manager must own the POI
+    if (role === 'manager') {
+      if (!poiId) return json(res, 400, { error: 'Missing poiId for manager' });
+      const p = await supabaseAdmin.from('pois').select('user_id').eq('id', poiId).limit(1).single();
+      if (p.error) return json(res, 404, { error: 'POI not found' });
+      const ownerId = (p.data?.user_id ?? '').toString();
+      if (ownerId !== authedUserId) return json(res, 403, { error: 'Forbidden: not owner of POI' });
+    }
+
+    const parsed = parseStorageUrl(urlToRemove);
     if (!parsed || !parsed.bucket || !parsed.path) return json(res, 400, { error: 'Cannot parse storage url' });
 
     const { error: remErr } = await supabaseAdmin.storage.from(parsed.bucket).remove([parsed.path]);

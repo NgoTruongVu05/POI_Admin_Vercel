@@ -270,7 +270,7 @@ async function render(main) {
               await fetch('/api/storage/remove', {
                 method: 'POST',
                 headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { Authorization: `Bearer ${token}` } : {}),
-                body: JSON.stringify({ url: oldImage })
+                body: JSON.stringify({ url: oldImage, poiId: id })
               });
             } catch (e) {
               console.warn('Failed to request server to remove old image:', e);
