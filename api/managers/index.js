@@ -242,25 +242,61 @@ export default async function handler(req, res) {
       return json(res, 400, { error: JSON.stringify(errObj) });
     }
 
-    const userId = createRes.data?.user?.id;
-    if (!userId) return json(res, 500, { error: 'User created but missing id.' });
-
-    const upsertRes = await supabaseAdmin
-      .from('user_roles')
-      .upsert({ user_id: userId, email, role }, { onConflict: 'user_id' })
-      .select('user_id,email,role,created_at,updated_at')
-      .single();
-
-    if (upsertRes.error || (upsertRes?.status && upsertRes.status >= 400)) {
-      console.error('supabase.upsert response:', upsertRes);
-      const errObj = {
-        message: upsertRes.error?.message ?? upsertRes?.statusText ?? 'Unknown error',
-        details: upsertRes
-      };
-      return json(res, 400, { error: JSON.stringify(errObj) });
+    // Ensure we store the real auth.users.id in user_roles.user_id. Some
+    // environments may report different identifiers; resolve by email when
+    // possible and prefer that id.
+    let resolvedId = createRes.data?.user?.id;
+    try {
+      const { data: found, error: findErr } = await supabaseAdmin
+        .from('auth.users')
+        .select('id')
+        .eq('email', email)
+        .limit(1);
+      if (!findErr && Array.isArray(found) && found.length) {
+        resolvedId = found[0].id;
+        console.log('[managers][POST] resolved auth id for email=%s -> %s', email, resolvedId);
+      }
+    } catch (e) {
+      console.warn('[managers][POST] exception resolving auth id for email=%s: %o', email, e);
     }
 
-    return json(res, 201, { data: upsertRes.data });
+    if (!resolvedId) return json(res, 500, { error: 'User created but missing id.' });
+
+    // First try to update any existing row that matches this email (covers
+    // legacy rows where user_id may be a provider subject). If no row was
+    // updated, fall back to upsert keyed by user_id.
+    const upd = await supabaseAdmin
+      .from('user_roles')
+      .update({ user_id: resolvedId, role, email })
+      .eq('email', email);
+
+    if (upd.error) {
+      console.warn('[managers][POST] user_roles update by email failed for %s: %o', email, upd.error);
+    }
+
+    const didUpdate = Array.isArray(upd.data) && upd.data.length;
+    let upsertRes;
+    if (!didUpdate) {
+      upsertRes = await supabaseAdmin
+        .from('user_roles')
+        .upsert({ user_id: resolvedId, email, role }, { onConflict: 'user_id' })
+        .select('user_id,email,role,created_at,updated_at')
+        .single();
+
+      if (upsertRes.error || (upsertRes?.status && upsertRes.status >= 400)) {
+        console.error('supabase.upsert response:', upsertRes);
+        const errObj = {
+          message: upsertRes.error?.message ?? upsertRes?.statusText ?? 'Unknown error',
+          details: upsertRes
+        };
+        return json(res, 400, { error: JSON.stringify(errObj) });
+      }
+
+      return json(res, 201, { data: upsertRes.data });
+    }
+
+    // If we updated existing row, return the updated record
+    return json(res, 200, { data: upd.data?.[0] });
   } catch (err) {
     return json(res, 500, { error: (err?.message ?? 'Server error').toString() });
   }
