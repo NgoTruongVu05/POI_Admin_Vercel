@@ -182,13 +182,21 @@ async function render(main) {
   function showFlash(message, type) {
     if (!flash) return;
     flash.classList.remove('hidden');
+    // render message with close button so user can inspect at leisure
+    const closeHtml = '<button id="flashClose" class="ml-3 text-sm font-semibold underline">Đóng</button>';
     if (type === 'error') {
       flash.className = 'px-5 py-4 text-sm text-rose-700 bg-rose-50 border-b border-rose-100';
+      flash.innerHTML = `<div>${escapeHtml(message)}</div>${closeHtml}`;
+      const btn = document.getElementById('flashClose');
+      if (btn) btn.addEventListener('click', () => flash.classList.add('hidden'));
     } else {
       flash.className = 'px-5 py-4 text-sm text-emerald-700 bg-emerald-50 border-b border-emerald-100';
+      flash.innerHTML = `<div>${escapeHtml(message)}</div>${closeHtml}`;
+      const btn = document.getElementById('flashClose');
+      if (btn) btn.addEventListener('click', () => flash.classList.add('hidden'));
+      // auto-hide success messages after short delay
+      setTimeout(() => { flash.classList.add('hidden'); }, 4000);
     }
-    flash.textContent = message;
-    setTimeout(() => { flash.classList.add('hidden'); }, 6000);
   }
   if (imageFileInput) {
     imageFileInput.addEventListener('change', () => {

@@ -280,9 +280,15 @@ async function render(main) {
     flash.classList.remove('hidden');
     if (type === 'error') {
       flash.className = 'px-5 py-4 text-sm text-rose-700 bg-rose-50 border-b border-rose-100';
+      flash.innerHTML = `<div>${escapeHtml(message)}</div><button id="flashClose" class="ml-3 text-sm font-semibold underline">Đóng</button>`;
+      const btn = document.getElementById('flashClose');
+      if (btn) btn.addEventListener('click', () => flash.classList.add('hidden'));
     } else {
       flash.className = 'px-5 py-4 text-sm text-emerald-700 bg-emerald-50 border-b border-emerald-100';
+      flash.innerHTML = `<div>${escapeHtml(message)}</div><button id="flashClose" class="ml-3 text-sm font-semibold underline">Đóng</button>`;
+      const btn = document.getElementById('flashClose');
+      if (btn) btn.addEventListener('click', () => flash.classList.add('hidden'));
+      setTimeout(() => { flash.classList.add('hidden'); }, 4000);
     }
-    flash.textContent = message;
   }
 }
