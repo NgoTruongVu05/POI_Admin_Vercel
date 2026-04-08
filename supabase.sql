@@ -59,6 +59,47 @@ using (true)
 with check (true);
 
 -- =========================================
+-- Manager roles (Chủ quán / Admin)
+-- Stores a readable list of managers + role.
+-- Role is also mirrored in Supabase Auth user_metadata.role.
+-- =========================================
+
+create table if not exists public.user_roles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  role text not null default 'owner' check (role in ('admin', 'owner')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists user_roles_email_unique on public.user_roles (lower(email));
+
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_user_roles_updated_at on public.user_roles;
+create trigger trg_user_roles_updated_at
+before update on public.user_roles
+for each row execute function public.set_updated_at();
+
+alter table public.user_roles enable row level security;
+
+-- Admin is determined by Supabase Auth JWT user_metadata.role
+drop policy if exists "user_roles_admin_all" on public.user_roles;
+create policy "user_roles_admin_all" on public.user_roles
+for all
+to authenticated
+using ((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin')
+with check ((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin');
+
+-- =========================================
 -- Optional seed
 -- =========================================
 

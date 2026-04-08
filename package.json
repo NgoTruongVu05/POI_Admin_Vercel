@@ -7,6 +7,9 @@
     "dev": "node scripts/build.mjs && npx http-server public -p 3000 -c-1",
     "serve": "npx http-server public -p 3000 -c-1"
   },
+  "dependencies": {
+    "@supabase/supabase-js": "2.57.4"
+  },
   "devDependencies": {
     "http-server": "^14.1.1"
   }

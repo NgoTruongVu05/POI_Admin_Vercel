@@ -9,7 +9,8 @@ export function renderLayout({ activeKey, title, user }) {
   const navItems = [
     { href: '/', key: 'dashboard', label: 'Dashboard', icon: 'bi-grid' },
     { href: '/pois', key: 'pois', label: 'Quản lý POIs', icon: 'bi-geo-alt' },
-    { href: '/languages', key: 'languages', label: 'Quản lý Ngôn ngữ', icon: 'bi-translate' }
+    { href: '/languages', key: 'languages', label: 'Quản lý Ngôn ngữ', icon: 'bi-translate' },
+    { href: '/managers', key: 'managers', label: 'Quản lý quản lý', icon: 'bi-people' }
   ];
 
   const navHtml = navItems.map(item => {

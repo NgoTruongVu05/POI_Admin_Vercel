@@ -18,6 +18,10 @@ Set these env vars (both locally and on Vercel):
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 
+For the **Managers** page (create/update/delete users via Vercel API), also set:
+
+- `SUPABASE_SERVICE_ROLE_KEY`
+
 They will be written into `public/env.js` during build.
 
 ## 3) Run locally
@@ -41,4 +45,5 @@ Open http://localhost:3000
 ## Notes
 
 - This is a client-only app. Keep using **anon key** in the browser (never use service role key).
+- The service role key is used only on the server (Vercel Functions under `/api`).
 - Access control is enforced by **RLS policies** in Supabase.
