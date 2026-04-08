@@ -16,6 +16,17 @@ if (!ensureConfigured()) {
 
 async function render(main) {
   const supabase = getSupabase();
+  const role = ((session?.user?.user_metadata?.role ?? '') || '').toString();
+
+  if (role !== 'admin') {
+    main.innerHTML = `
+      <div class="rounded-2xl border border-amber-200 bg-amber-50 px-6 py-5 text-amber-900">
+        <div class="font-semibold">Bạn không có quyền truy cập trang này.</div>
+        <div class="text-sm mt-1">Yêu cầu role <span class="font-mono">admin</span>. Role hiện tại: <span class="font-mono">${escapeHtml(role || '—')}</span></div>
+      </div>
+    `;
+    return;
+  }
   const editCode = (getQueryParam('code') ?? '').trim().toLowerCase();
   const isEdit = Boolean(editCode);
   const isAdd = ((getQueryParam('new') ?? '').toString().trim() === '1');

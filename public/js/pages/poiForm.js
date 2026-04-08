@@ -1,5 +1,5 @@
 import { ensureConfigured } from '../bootstrap.js';
-import { requireAuth } from '../auth.js';
+import { requireAuth, getSession } from '../auth.js';
 import { getSupabase } from '../supabaseClient.js';
 import { renderLayout } from '../layout.js';
 import { escapeHtml, getQueryParam, getTailwindColorFromClass, waitForGlobal } from '../ui.js';
@@ -48,6 +48,9 @@ async function render(main) {
   const supabase = getSupabase();
   const editId = (getQueryParam('id') ?? '').trim();
   const isEdit = editId !== '';
+
+  const session = await getSession();
+  const userId = session?.user?.id ?? null;
 
   let values = { id: '', name: '', description: '', lat: '', lng: '' };
   let suggestedId = '';
@@ -204,7 +207,7 @@ async function render(main) {
       } else {
         const res = await supabase
           .from('pois')
-          .insert({ id, name, description: description || null, lat, lng });
+          .insert({ id, name, description: description || null, lat, lng, user_id: userId });
         if (res.error) throw res.error;
       }
 

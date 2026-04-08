@@ -11,7 +11,8 @@ create table if not exists public.pois (
   description text not null,
   image TEXT,
   lat double precision not null,
-  lng double precision not null
+  lng double precision not null,
+  user_id uuid references auth.users(id) on delete cascade on update cascade -- owner/manager user id (nullable)
 );
 
 create table if not exists public.languages (
@@ -43,6 +44,9 @@ for all
 to authenticated
 using (true)
 with check (true);
+
+-- Index for fast lookup by owner
+create index if not exists idx_pois_user_id on public.pois (user_id);
 
 drop policy if exists "languages_auth_all" on public.languages;
 create policy "languages_auth_all" on public.languages

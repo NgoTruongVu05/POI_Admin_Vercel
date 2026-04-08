@@ -1,5 +1,5 @@
 import { ensureConfigured } from '../bootstrap.js';
-import { requireAuth } from '../auth.js';
+import { requireAuth, getSession } from '../auth.js';
 import { getSupabase } from '../supabaseClient.js';
 import { renderLayout } from '../layout.js';
 import { escapeHtml, getTailwindColorFromClass, waitForGlobal } from '../ui.js';
@@ -15,6 +15,9 @@ if (!ensureConfigured()) {
 }
 
 async function render(main) {
+  const session = await getSession();
+  const userId = session?.user?.id ?? '';
+  const role = ((session?.user?.user_metadata?.role ?? '') || '').toString();
   main.innerHTML = `
     <div class="flex items-start justify-between gap-6">
       <div>
@@ -83,11 +86,16 @@ async function render(main) {
   try {
     const res = await supabase
       .from('pois')
-      .select('id,name,description,lat,lng')
+      .select('id,name,description,lat,lng,user_id')
       .order('id', { ascending: false });
 
     if (res.error) throw res.error;
     pois = res.data ?? [];
+
+    // If the user is a manager, only show POIs that belong to them
+    if (role === 'manager' && userId) {
+      pois = pois.filter(p => ((p.user_id ?? '') === userId));
+    }
   } catch {
     pois = [];
   }
@@ -139,6 +147,7 @@ async function render(main) {
       const name = (poi.name ?? '').toString();
       const desc = (poi.description ?? '').toString();
       const dataSearch = `${name} ${desc}`.toLowerCase();
+      const ownerText = (poi.user_id ?? '').toString();
 
       return `
         <div class="poi-row flex items-stretch justify-between gap-3 px-5 py-4 hover:bg-slate-50 transition" data-id="${escapeHtml(id)}" data-search="${escapeHtml(dataSearch)}">
@@ -147,6 +156,9 @@ async function render(main) {
             <div class="min-w-0 flex-1">
               <div class="font-semibold truncate">${escapeHtml(name)}</div>
               <div class="text-xs text-slate-500 truncate">${escapeHtml(desc)}</div>
+              <div class="text-xs text-slate-400 mt-1">
+                <span class="font-mono">${escapeHtml(ownerText || '—')}</span>
+              </div>
             </div>
           </button>
 
