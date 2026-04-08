@@ -96,6 +96,20 @@ async function render(main) {
     if (role === 'manager' && userId) {
       pois = pois.filter(p => ((p.user_id ?? '') === userId));
     }
+    // Load owner display names (from user_roles.email) for shown POIs
+    try {
+      const uids = Array.from(new Set(pois.map(p => (p.user_id ?? '').toString()).filter(Boolean)));
+      if (uids.length) {
+        const ur = await supabase.from('user_roles').select('user_id,email').in('user_id', uids);
+        const map = {};
+        if (!ur.error && Array.isArray(ur.data)) ur.data.forEach(r => map[(r.user_id ?? '').toString()] = r.email || '');
+        pois.forEach(p => p.ownerName = map[(p.user_id ?? '').toString()] || '');
+      } else {
+        pois.forEach(p => p.ownerName = '');
+      }
+    } catch (e) {
+      pois.forEach(p => p.ownerName = '');
+    }
   } catch {
     pois = [];
   }
@@ -146,8 +160,8 @@ async function render(main) {
       const id = (poi.id ?? '').toString();
       const name = (poi.name ?? '').toString();
       const desc = (poi.description ?? '').toString();
-      const dataSearch = `${name} ${desc}`.toLowerCase();
-      const ownerText = (poi.user_id ?? '').toString();
+      const ownerText = (poi.ownerName ?? '').toString();
+      const dataSearch = `${name} ${desc} ${ownerText}`.toLowerCase();
 
       return `
         <div class="poi-row flex items-stretch justify-between gap-3 px-5 py-4 hover:bg-slate-50 transition" data-id="${escapeHtml(id)}" data-search="${escapeHtml(dataSearch)}">

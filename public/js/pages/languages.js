@@ -1,5 +1,5 @@
 import { ensureConfigured } from '../bootstrap.js';
-import { requireAuth } from '../auth.js';
+import { requireAuth, getSession } from '../auth.js';
 import { getSupabase } from '../supabaseClient.js';
 import { renderLayout } from '../layout.js';
 import { escapeHtml, getQueryParam } from '../ui.js';
@@ -16,6 +16,7 @@ if (!ensureConfigured()) {
 
 async function render(main) {
   const supabase = getSupabase();
+  const session = await getSession();
   const role = ((session?.user?.user_metadata?.role ?? '') || '').toString();
 
   if (role !== 'admin') {
