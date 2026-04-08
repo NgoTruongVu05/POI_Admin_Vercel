@@ -21,7 +21,8 @@ async function main() {
   try {
     console.log('[delete-user] lookup auth user by email=%s', email);
     const { data: found, error: findErr } = await supabaseAdmin
-      .from('auth.users')
+      .schema('auth')
+      .from('users')
       .select('id')
       .eq('email', email)
       .limit(1);

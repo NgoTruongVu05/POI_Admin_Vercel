@@ -115,7 +115,8 @@ export default async function handler(req, res) {
       // If we have an email, try to find auth user by email and delete by that id
       if (email) {
         const { data: found, error: findErr } = await supabaseAdmin
-          .from('auth.users')
+          .schema('auth')
+          .from('users')
           .select('id')
           .eq('email', email)
           .limit(1);

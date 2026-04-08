@@ -216,7 +216,7 @@ async function render(main, user) {
         const safeEmail = escapeHtml((r.email ?? '').toString());
         // Prefer resolved `auth_id` (real auth.users.id) when available.
         // Fallback to `user_id` from user_roles if not.
-        const safeId = escapeHtml(((r.user_id ?? r.user_id) ?? '').toString());
+        const safeId = escapeHtml(((r.auth_id ?? r.user_id ?? '').toString()));
         const safeRole = (r.role ?? '').toString();
         const safeRoleHtml = escapeHtml(safeRole || '—');
 

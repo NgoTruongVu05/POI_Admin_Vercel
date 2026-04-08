@@ -96,7 +96,8 @@ export default async function handler(req, res) {
           try {
             console.log('[managers][GET] resolving auth id for email=%s', email);
             const { data: found, error: findErr } = await supabaseAdmin
-              .from('auth.users')
+              .schema('auth')
+              .from('users')
               .select('id')
               .eq('email', email)
               .limit(1);
@@ -131,7 +132,8 @@ export default async function handler(req, res) {
 
       // Find auth user by email
       const { data: found, error: findErr } = await supabaseAdmin
-        .from('auth.users')
+        .schema('auth')
+        .from('users')
         .select('id')
         .eq('email', email)
         .limit(1);
@@ -192,7 +194,8 @@ export default async function handler(req, res) {
       if (createRes.error?.code === 'email_exists' || /already been registered/i.test(msg) || createRes.status === 422) {
         try {
           const { data: found, error: findErr } = await supabaseAdmin
-            .from('auth.users')
+            .schema('auth')
+            .from('users')
             .select('id,email')
             .eq('email', email)
             .limit(1);
@@ -248,7 +251,8 @@ export default async function handler(req, res) {
     let resolvedId = createRes.data?.user?.id;
     try {
       const { data: found, error: findErr } = await supabaseAdmin
-        .from('auth.users')
+        .schema('auth')
+        .from('users')
         .select('id')
         .eq('email', email)
         .limit(1);
