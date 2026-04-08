@@ -215,18 +215,19 @@ async function render(main, user) {
         const created = r.created_at ? new Date(r.created_at).toLocaleString() : '';
         const safeEmail = escapeHtml((r.email ?? '').toString());
         const safeId = escapeHtml((r.user_id ?? '').toString());
-        const safeRole = escapeHtml((r.role ?? '').toString());
+        const safeRole = (r.role ?? '').toString();
+        const safeRoleHtml = escapeHtml(safeRole || '—');
+
+        const actionHtml = safeRole === 'admin'
+          ? `<div class="py-3 pr-0 text-right"><span class="text-xs text-slate-400">—</span></div>`
+          : `<div class="py-3 pr-0 text-right"><button class="delBtn inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"><i class="bi bi-trash"></i><span>Xoá</span></button></div>`;
 
         return `
           <tr data-id="${safeId}">
             <td class="py-3 pr-4 text-slate-800">${safeEmail}</td>
-            <td class="py-3 pr-4 text-slate-700 font-medium">${safeRole || '—'}</td>
+            <td class="py-3 pr-4 text-slate-700 font-medium">${safeRoleHtml}</td>
             <td class="py-3 pr-4 text-slate-500">${escapeHtml(created)}</td>
-            <td class="py-3 pr-0 text-right">
-              <button class="delBtn inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
-                <i class="bi bi-trash"></i><span>Xoá</span>
-              </button>
-            </td>
+            ${actionHtml}
           </tr>
         `;
       }).join('');
@@ -272,8 +273,14 @@ async function render(main, user) {
             headers: { 'Authorization': `Bearer ${token}` }
           });
 
-          const json = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error((json?.error ?? 'Không thể xoá.').toString());
+          const text = await res.text().catch(() => '');
+          let json = {};
+          try { json = text ? JSON.parse(text) : {}; } catch (e) { json = {}; }
+
+          if (!res.ok) {
+            const errMsg = (json?.error ?? json?.message) || text || `HTTP ${res.status} ${res.statusText}`;
+            throw new Error(errMsg.toString());
+          }
 
           await loadList();
           closeDelete();
