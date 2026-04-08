@@ -1,5 +1,5 @@
 import { ensureConfigured } from '../bootstrap.js';
-import { requireAuth } from '../auth.js';
+import { requireAuth, getSession } from '../auth.js';
 import { getSupabase } from '../supabaseClient.js';
 import { renderLayout } from '../layout.js';
 import { escapeHtml } from '../ui.js';
@@ -17,21 +17,23 @@ if (!ensureConfigured()) {
 async function render(main) {
   const supabase = getSupabase();
 
+  const session = await getSession();
+  const userId = session?.user?.id ?? '';
+  const role = ((session?.user?.user_metadata?.role ?? '') || '').toString();
+
   let poiTotal = 0;
   let recentPois = [];
 
   try {
-    const countRes = await supabase
-      .from('pois')
-      .select('*', { count: 'exact', head: true });
+    let countQuery = supabase.from('pois').select('*', { count: 'exact', head: true });
+    if (role === 'manager' && userId) countQuery = countQuery.eq('user_id', userId);
+    const countRes = await countQuery;
 
     poiTotal = countRes.count ?? 0;
 
-    const recentRes = await supabase
-      .from('pois')
-      .select('id,name')
-      .order('id', { ascending: false })
-      .limit(2);
+    let recentQuery = supabase.from('pois').select('id,name').order('id', { ascending: false }).limit(2);
+    if (role === 'manager' && userId) recentQuery = recentQuery.eq('user_id', userId);
+    const recentRes = await recentQuery;
 
     if (recentRes.error) throw recentRes.error;
     recentPois = recentRes.data ?? [];
