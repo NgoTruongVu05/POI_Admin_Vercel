@@ -9,6 +9,11 @@ function getEnv(name) {
   return (process.env[name] ?? '').toString().trim();
 }
 
+function isDebug() {
+  const v = (process.env.DEBUG_REMOVE ?? getEnv('DEBUG_REMOVE') ?? '').toString().toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes';
+}
+
 function getBearerToken(req) {
   const auth = (req.headers.authorization ?? '').toString();
   const match = auth.match(/^Bearer\s+(.+)$/i);
@@ -104,7 +109,10 @@ export default async function handler(req, res) {
     const role = (userData?.user?.user_metadata?.role ?? '').toString();
 
     const adminClient = getAdminClient();
-    if (!adminClient.ok) return json(res, adminClient.status, { error: adminClient.message });
+    if (!adminClient.ok) {
+      if (isDebug()) console.error('admin client error', adminClient);
+      return json(res, adminClient.status, { error: adminClient.message, debug: isDebug() ? adminClient : undefined });
+    }
     const { supabaseAdmin } = adminClient;
 
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
@@ -122,12 +130,22 @@ export default async function handler(req, res) {
     }
 
     const parsed = parseStorageUrl(urlToRemove);
-    if (!parsed || !parsed.bucket || !parsed.path) return json(res, 400, { error: 'Cannot parse storage url' });
+    if (!parsed || !parsed.bucket || !parsed.path) {
+      const errObj = { error: 'Cannot parse storage url', url: urlToRemove };
+      if (isDebug()) console.error('parseStorageUrl failed', { urlToRemove, parsed });
+      return json(res, 400, isDebug() ? { ...errObj, parsed } : errObj);
+    }
 
-    const { error: remErr } = await supabaseAdmin.storage.from(parsed.bucket).remove([parsed.path]);
-    if (remErr) return json(res, 500, { error: remErr.message ?? remErr });
+    if (isDebug()) console.log('Removing object', parsed);
+    const { data: remData, error: remErr } = await supabaseAdmin.storage.from(parsed.bucket).remove([parsed.path]);
+    if (remErr) {
+      if (isDebug()) console.error('supabase remove error', remErr);
+      const body = { error: remErr.message ?? remErr };
+      if (isDebug()) body.debug = remErr;
+      return json(res, 500, body);
+    }
 
-    return json(res, 200, { ok: true });
+    return json(res, 200, { ok: true, data: isDebug() ? remData : undefined });
   } catch (err) {
     return json(res, 500, { error: (err?.message ?? 'Server error').toString() });
   }
