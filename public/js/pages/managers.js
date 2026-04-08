@@ -204,18 +204,12 @@ async function render(main, user) {
         const created = r.created_at ? new Date(r.created_at).toLocaleString() : '';
         const safeEmail = escapeHtml((r.email ?? '').toString());
         const safeId = escapeHtml((r.user_id ?? '').toString());
-        const selectedManager = r.role === 'manager' ? 'selected' : '';
-        const selectedAdmin = r.role === 'admin' ? 'selected' : '';
+        const safeRole = escapeHtml((r.role ?? '').toString());
 
         return `
           <tr data-id="${safeId}">
             <td class="py-3 pr-4 text-slate-800">${safeEmail}</td>
-            <td class="py-3 pr-4">
-                <select class="roleSel w-44 px-3 py-2 bg-white border border-slate-200 rounded-xl">
-                <option value="manager" ${selectedManager}>manager</option>
-                <option value="admin" ${selectedAdmin}>admin</option>
-              </select>
-            </td>
+            <td class="py-3 pr-4 text-slate-700 font-medium">${safeRole || '—'}</td>
             <td class="py-3 pr-4 text-slate-500">${escapeHtml(created)}</td>
             <td class="py-3 pr-0 text-right">
               <button class="delBtn inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
@@ -225,33 +219,7 @@ async function render(main, user) {
           </tr>
         `;
       }).join('');
-
-      tbody.querySelectorAll('.roleSel').forEach(sel => {
-        sel.addEventListener('change', async (e) => {
-          const tr = e.target.closest('tr');
-          const id = tr?.getAttribute('data-id') || '';
-          const newRole = e.target.value;
-
-          try {
-            const token = await getAccessToken();
-            const res = await fetch(`/api/managers/${encodeURIComponent(id)}`, {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({ role: newRole })
-            });
-
-            const json = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error((json?.error ?? 'Không thể cập nhật role.').toString());
-          } catch (err) {
-            listError.textContent = (err?.message ?? 'Không thể cập nhật role.').toString();
-            listError.classList.remove('hidden');
-            await loadList();
-          }
-        });
-      });
+      // Role column is display-only; no edit listeners.
 
       tbody.querySelectorAll('.delBtn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
