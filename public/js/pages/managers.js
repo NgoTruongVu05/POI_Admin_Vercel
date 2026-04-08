@@ -156,8 +156,12 @@ async function render(main, user) {
         body: JSON.stringify({ email, password, role })
       });
 
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((json?.error ?? 'Có lỗi xảy ra.').toString());
+        const json = await res.json().catch(() => null);
+        if (!res.ok) {
+          const text = await res.text().catch(() => null);
+          const errMsg = (json?.error ?? json?.message) || text || 'Có lỗi xảy ra.';
+          throw new Error(errMsg.toString());
+        }
 
       successBox.textContent = 'Đã tạo tài khoản thành công.';
       successBox.classList.remove('hidden');
@@ -289,7 +293,9 @@ async function render(main, user) {
 
   async function getAccessToken() {
     const session = await getSession();
-    const token = session?.access_token;
+    // Some supabase client versions / environments may expose the token under
+    // different keys; try common alternatives as a fallback.
+    const token = session?.access_token ?? session?.accessToken ?? session?.provider_token ?? session?.providerToken ?? session?.token;
     if (!token) throw new Error('Chưa đăng nhập.');
     return token;
   }
