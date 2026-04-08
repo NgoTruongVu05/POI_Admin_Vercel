@@ -245,45 +245,14 @@ async function render(main) {
 
     confirmBtn.disabled = true;
     try {
-      // Delete image from storage (if present)
-      try {
-        const p = await supabase.from('pois').select('image').eq('id', pendingDeleteId).limit(1).single();
-        if (!p.error && p.data?.image) {
-          const img = String(p.data.image);
-
-          function parseStorageUrl(u) {
-            if (!u) return null;
-            try {
-              const s = String(u);
-              let m = s.match(/\/storage\/v1\/object\/public\/(.*?)\/(.*)$/);
-              if (m) return { bucket: m[1], path: decodeURIComponent(m[2]) };
-              m = s.match(/object\/public\/(.*?)\/(.*)$/);
-              if (m) return { bucket: m[1], path: decodeURIComponent(m[2]) };
-              const idx = s.indexOf('poi-images/');
-              if (idx !== -1) return { bucket: 'poi-images', path: s.substring(idx + 'poi-images/'.length).split('?')[0] };
-              return null;
-            } catch (e) { return null; }
-          }
-
-          const parsed = parseStorageUrl(img);
-          if (parsed && parsed.bucket && parsed.path) {
-            try {
-              const { error: remErr } = await supabase.storage.from(parsed.bucket).remove([parsed.path]);
-              if (remErr) console.warn('Failed to remove image:', remErr.message ?? remErr);
-            } catch (e) {
-              console.warn('Failed to remove image:', e);
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('Error checking/removing image before delete:', e);
-      }
-
-      // Delete all translations for this POI
-      await supabase.from('poitranslations').delete().eq('poi_id', pendingDeleteId);
-
-      const res = await supabase.from('pois').delete().eq('id', pendingDeleteId);
-      if (res.error) throw res.error;
+      // Call server endpoint to delete POI (server will remove storage file using service key)
+      const token = (session?.access_token ?? '') || '';
+      const resp = await fetch(`/api/pois/${encodeURIComponent(pendingDeleteId)}`, {
+        method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      const j = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(j?.error || 'Delete failed');
       window.location.reload();
     } catch {
       showFlash('Không thể xoá POI. Vui lòng thử lại.', 'error');

@@ -255,24 +255,27 @@ async function render(main) {
             } catch (e) { return null; }
           }
 
-          // If there is an existing image URL, attempt to delete the old file from storage
-          try {
-            if (values.image) {
-              const parsed = parseStorageUrl(values.image);
-              if (parsed && parsed.bucket === bucket && parsed.path) {
-                const { error: remErr } = await supabase.storage.from(bucket).remove([parsed.path]);
-                if (remErr) console.warn('Failed to remove old image:', remErr.message ?? remErr);
-              }
-            }
-          } catch (e) {
-            console.warn('Failed to delete old image (continuing):', e);
-          }
+          const oldImage = values.image || null;
 
           const filePath = `${id}/${Date.now()}_${file.name}`;
           const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
           if (uploadError) throw uploadError;
           const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(filePath);
           imageUrl = publicData?.publicUrl ?? publicData?.publicURL ?? null;
+
+          // If upload succeeded and there was a previous image, ask server to remove it (server uses service_role)
+          if (oldImage && oldImage !== imageUrl) {
+            try {
+              const token = (session?.access_token ?? '') || '';
+              await fetch('/api/storage/remove', {
+                method: 'POST',
+                headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { Authorization: `Bearer ${token}` } : {}),
+                body: JSON.stringify({ url: oldImage })
+              });
+            } catch (e) {
+              console.warn('Failed to request server to remove old image:', e);
+            }
+          }
         }
 
       if (isEdit) {
