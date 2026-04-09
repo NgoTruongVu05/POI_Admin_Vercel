@@ -78,9 +78,7 @@ async function render(main) {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  const stroke = getTailwindColorFromClass('text-blue-600') || '#2563eb';
-  const fill = getTailwindColorFromClass('text-blue-500') || '#3b82f6';
-  const geofenceOptions = { radius: 50, weight: 2, opacity: 0.9, fillOpacity: 0.12, interactive: false, color: stroke, fillColor: fill };
+  // geofence circle display removed per user request
 
   let pois = [];
   try {
@@ -123,7 +121,6 @@ async function render(main) {
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
       const ll = [lat, lng];
       bounds.push(ll);
-      L.circle(ll, geofenceOptions).addTo(map);
       const marker = L.marker(ll).addTo(map);
       marker.bindTooltip(escapeHtml(poi.name || ''), { direction: 'top', offset: [0, -8], opacity: 0.95, sticky: true });
       markersById.set(poi.id, marker);
