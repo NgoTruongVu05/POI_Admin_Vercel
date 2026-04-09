@@ -52,13 +52,13 @@ async function render(main) {
   const session = await getSession();
   const userId = session?.user?.id ?? null;
 
-  let values = { id: '', name: '', description: '', lat: '', lng: '', image: '' };
+  let values = { id: '', name: '', description: '', lat: '', lng: '', image: '', maplink: '' };
   let suggestedId = '';
   let loadError = '';
 
   if (isEdit) {
     try {
-      const res = await supabase.from('pois').select('id,name,description,lat,lng,image').eq('id', editId).limit(1).single();
+      const res = await supabase.from('pois').select('id,name,description,lat,lng,image,maplink').eq('id', editId).limit(1).single();
       if (res.error) throw res.error;
       values = {
         id: res.data.id,
@@ -66,7 +66,8 @@ async function render(main) {
         description: res.data.description ?? '',
         lat: String(res.data.lat ?? ''),
         lng: String(res.data.lng ?? ''),
-        image: res.data.image ?? ''
+        image: res.data.image ?? '',
+        maplink: res.data.maplink ?? ''
       };
     } catch {
       loadError = 'Không tìm thấy POI để sửa.';
@@ -146,6 +147,12 @@ async function render(main) {
         <label class="block">
           <div class="text-sm font-semibold text-slate-700">Longitude <span class="text-rose-600">*</span></div>
           <input id="lng" name="lng" value="${escapeHtml(values.lng)}" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="106.660172" required />
+        </label>
+
+        <label class="block md:col-span-2">
+          <div class="text-sm font-semibold text-slate-700">Maplink</div>
+          <input id="maplink" name="maplink" value="${escapeHtml(values.maplink)}" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="https://maps.google.com/?q=..." maxlength="1000" />
+          <div class="mt-1 text-xs text-slate-500">Tùy chọn: nhập đường dẫn bản đồ (map link) nếu có.</div>
         </label>
 
         <div class="md:col-span-2">
@@ -249,6 +256,7 @@ async function render(main) {
 
     const lat = Number(latRaw);
     const lng = Number(lngRaw);
+    const maplink = document.getElementById('maplink')?.value.trim();
     const file = imageFileInput?.files?.[0] ?? null;
 
     try {
@@ -310,13 +318,13 @@ async function render(main) {
       if (isEdit) {
         const res = await supabase
           .from('pois')
-          .update({ name, description: description || null, lat, lng, image: imageUrl })
+          .update({ name, description: description || null, lat, lng, image: imageUrl, maplink: maplink || null })
           .eq('id', id);
         if (res.error) throw res.error;
       } else {
         const res = await supabase
           .from('pois')
-          .insert({ id, name, description: description || null, lat, lng, user_id: userId, image: imageUrl });
+          .insert({ id, name, description: description || null, lat, lng, user_id: userId, image: imageUrl, maplink: maplink || null });
         if (res.error) throw res.error;
       }
 
