@@ -78,8 +78,6 @@ async function render(main) {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  // geofence circle display removed per user request
-
   let pois = [];
   try {
     const res = await supabase

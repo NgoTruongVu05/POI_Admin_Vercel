@@ -387,15 +387,10 @@ async function render(main) {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    const stroke = getTailwindColorFromClass('text-blue-600') || '#2563eb';
-    const fill = getTailwindColorFromClass('text-blue-500') || '#3b82f6';
-    const circleStyle = { radius: 50, weight: 2, opacity: 0.9, fillOpacity: 0.12, interactive: false, color: stroke, fillColor: fill };
-
     // TP.HCM (District 1 area)
     const defaultCenter = [10.776889, 106.700806];
 
     let marker = null;
-    let circle = null;
 
     function parseLatLng() {
       const latRaw = (latInput.value ?? '').toString().trim();
@@ -426,13 +421,6 @@ async function render(main) {
       } else {
         marker.setLatLng(ll);
       }
-
-      if (!circle) {
-        circle = L.circle(ll, circleStyle).addTo(map);
-      } else {
-        circle.setLatLng(ll);
-      }
-
       if (pan) {
         map.setView(ll, Math.max(map.getZoom(), 16));
       }
