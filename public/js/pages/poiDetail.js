@@ -27,7 +27,7 @@ async function render(main) {
 
   let poi = null;
   try {
-    const res = await supabase.from('pois').select('id,name,description,lat,lng,image').eq('id', id).limit(1).single();
+    const res = await supabase.from('pois').select('id,name,description,lat,lng,image,maplink').eq('id', id).limit(1).single();
     if (res.error) throw res.error;
     poi = res.data;
   } catch {
@@ -77,6 +77,11 @@ async function render(main) {
 
             <div class="mt-5 text-sm text-slate-500">Mô tả</div>
             <div class="mt-1 text-sm text-slate-700 whitespace-pre-line">${escapeHtml(poi.description ?? '')}</div>
+
+            ${poi.maplink ? `
+              <div class="mt-5 text-sm text-slate-500">Maplink</div>
+              <div class="mt-1 text-sm text-slate-700 break-words"><a href="${escapeHtml(poi.maplink)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline">${escapeHtml(poi.maplink)}</a></div>
+            ` : ''}
 
             <div class="mt-5 grid grid-cols-2 gap-4">
               <div>
