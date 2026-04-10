@@ -34,7 +34,7 @@ async function render(main, user) {
         <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden">
           <div class="px-6 py-5 border-b border-slate-100 flex items-center gap-2">
             <i class="bi bi-person-plus text-blue-600"></i>
-            <div class="font-semibold">Tạo người quản lý</div>
+            <div class="font-semibold">Tạo tài khoản</div>
           </div>
 
           <div class="px-6 py-6">
@@ -67,9 +67,6 @@ async function render(main, user) {
                 </button>
               </div>
             </form>
-
-            <div class="mt-3 text-xs text-slate-500">Role được lưu vào <span class="font-mono">user_metadata.role</span> và bảng <span class="font-mono">user_roles</span>.</div>
-          </div>
         </div>
 
         <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden">
