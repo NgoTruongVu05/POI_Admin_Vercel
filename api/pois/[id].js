@@ -113,17 +113,8 @@ export default async function handler(req, res) {
       if (ownerId !== authedUserId) return json(res, 403, { error: 'Forbidden: not owner of POI.' });
     }
 
-    // fetch image URL
-    const p = await supabaseAdmin.from('pois').select('image').eq('id', id).limit(1).single();
-    if (!p.error && p.data?.image) {
-      const parsed = parseStorageUrl(p.data.image);
-      if (parsed && parsed.bucket && parsed.path) {
-        try {
-          const { error: remErr } = await supabaseAdmin.storage.from(parsed.bucket).remove([parsed.path]);
-          if (remErr) console.warn('remove error:', remErr);
-        } catch (e) { console.warn('remove exception', e); }
-      }
-    }
+    // NOTE: Previously the server removed the POI's stored image when deleting the POI.
+    // Per new requirement, stored images should not be deleted automatically here — keep them intact.
 
     // delete translations
     await supabaseAdmin.from('poitranslations').delete().eq('poi_id', id);

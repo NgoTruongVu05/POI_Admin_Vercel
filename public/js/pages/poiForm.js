@@ -285,34 +285,14 @@ async function render(main) {
             } catch (e) { return null; }
           }
 
-          const oldImage = values.image || null;
-
           const filePath = `${id}/${Date.now()}_${file.name}`;
           const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
           if (uploadError) throw uploadError;
           const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(filePath);
           imageUrl = publicData?.publicUrl ?? publicData?.publicURL ?? null;
 
-          // If upload succeeded and there was a previous image, ask server to remove it (server uses service_role)
-          if (oldImage && oldImage !== imageUrl) {
-            try {
-              const token = (session?.access_token ?? '') || '';
-              const resp = await fetch('/api/storage/remove', {
-                method: 'POST',
-                headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { Authorization: `Bearer ${token}` } : {}),
-                body: JSON.stringify({ url: oldImage, poiId: id })
-              });
-              const j = await resp.json().catch(() => ({}));
-              if (!resp.ok) {
-                const m = j?.error || j?.message || 'Failed to remove old image';
-                console.warn('Server failed to remove old image:', m);
-                showFlash(`Xoá ảnh cũ thất bại: ${m}`, 'error');
-              }
-            } catch (e) {
-              console.warn('Failed to request server to remove old image:', e);
-              showFlash('Không thể kết nối server để xóa ảnh cũ.', 'error');
-            }
-          }
+          // NOTE: Previously the app removed the old image after uploading a new one.
+          // Per new requirement, we no longer delete old images here — keep them intact.
         }
 
       if (isEdit) {
