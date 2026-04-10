@@ -377,7 +377,6 @@ async function render(main) {
     const defaultCenter = [10.776889, 106.700806];
 
     let marker = null;
-    let circle = null;
 
     function parseLatLng() {
       const latRaw = (latInput.value ?? '').toString().trim();
@@ -407,16 +406,6 @@ async function render(main) {
         });
       } else {
         marker.setLatLng(ll);
-      }
-
-      if (!circle) {
-        circle = L.circle(ll, circleStyle).addTo(map);
-      } else {
-        circle.setLatLng(ll);
-      }
-
-      if (pan) {
-        map.setView(ll, Math.max(map.getZoom(), 16));
       }
     }
 
