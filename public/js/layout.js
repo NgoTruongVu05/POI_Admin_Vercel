@@ -11,7 +11,7 @@ export function renderLayout({ activeKey, title, user }) {
     { href: '/', key: 'dashboard', label: 'Dashboard', icon: 'bi-grid' },
     { href: '/pois', key: 'pois', label: 'Quản lý POIs', icon: 'bi-geo-alt' },
     { href: '/languages', key: 'languages', label: 'Quản lý Ngôn ngữ', icon: 'bi-translate' },
-    { href: '/managers', key: 'managers', label: 'Quản lý quản lý', icon: 'bi-people' }
+    { href: '/managers', key: 'managers', label: 'Quản lý tài khoản & phân quyền', icon: 'bi-people' }
   ];
 
   // Hide admin-only items for non-admin users

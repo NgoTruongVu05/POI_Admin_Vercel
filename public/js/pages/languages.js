@@ -59,7 +59,7 @@ async function render(main) {
     <div class="flex items-start justify-between gap-6">
       <div>
         <h1 class="text-2xl font-semibold">Quản lý Ngôn ngữ</h1>
-        <p class="text-sm text-slate-500 mt-1">Thêm, sửa và bật/tắt trạng thái ngôn ngữ.</p>
+        <p class="text-sm text-slate-500 mt-1">Thêm và sửa ngôn ngữ.</p>
       </div>
 
       <a href="/languages?new=1" data-action="add" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-semibold hover:bg-blue-700 transition">
@@ -138,20 +138,7 @@ async function render(main) {
     </div>
   `;
 
-  // Toggle handlers
-  main.querySelectorAll('[data-action="toggle"]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const code = (btn.getAttribute('data-code') ?? '').toString();
-      const isActive = (btn.getAttribute('data-active') ?? '') === 'true';
-      try {
-        const res = await supabase.from('languages').update({ is_active: !isActive }).eq('code', code);
-        if (res.error) throw res.error;
-        window.location.reload();
-      } catch {
-        window.alert('Không thể cập nhật trạng thái ngôn ngữ.');
-      }
-    });
-  });
+  // Note: toggle UI removed — status is still displayed but cannot be toggled here.
 
   // Modal add/edit handlers
   const modal = document.getElementById('langModal');
@@ -339,10 +326,6 @@ async function render(main) {
               <i class="bi bi-pencil"></i>
               Sửa
             </a>
-            <button type="button" data-action="toggle" data-code="${escapeHtml(code)}" data-active="${isActive ? 'true' : 'false'}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition">
-              <i class="bi ${isActive ? 'bi-toggle2-on' : 'bi-toggle2-off'}"></i>
-              ${isActive ? 'Tắt' : 'Bật'}
-            </button>
           </div>
         </td>
       </tr>

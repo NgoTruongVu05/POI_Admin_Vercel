@@ -7,8 +7,8 @@ if (!ensureConfigured()) {
   // config page already rendered
 } else {
   const session = await requireAuth();
-  if (session) {
-    const main = renderLayout({ activeKey: 'managers', title: 'Quản lý người quản lý | POI Admin', user: session.user });
+    if (session) {
+    const main = renderLayout({ activeKey: 'managers', title: 'Quản lý tài khoản & phân quyền | POI Admin', user: session.user });
     await render(main, session.user);
   }
 }
@@ -19,8 +19,8 @@ async function render(main, user) {
   main.innerHTML = `
     <div class="flex items-start justify-between gap-6">
       <div>
-        <h1 class="text-2xl font-semibold">Quản lý người quản lý</h1>
-        <p class="text-sm text-slate-500 mt-1">Tạo Chủ quán/Admin và phân quyền bằng role.</p>
+        <h1 class="text-2xl font-semibold">Quản lý tài khoản & phân quyền</h1>
+        <p class="text-sm text-slate-500 mt-1">Tạo tài khoản và phân quyền bằng role.</p>
       </div>
     </div>
 
