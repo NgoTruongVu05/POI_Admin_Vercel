@@ -166,12 +166,7 @@ async function render(main) {
                     <span id="submitText">Thêm</span>
                   </button>
                 </div>
-                <div id="translationProgress" class="mt-4 hidden">
-                  <div id="translationProgressText" class="text-sm text-slate-600 mb-2">Đang chuẩn bị...</div>
-                  <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                    <div id="translationProgressBar" class="bg-blue-600 h-2 w-0"></div>
-                  </div>
-                </div>
+                
               </form>
             </div>
           </div>
@@ -225,38 +220,19 @@ async function render(main) {
   }
 
   function openModal(nextMode, nextValues) {
-    mode = nextMode;
-    values = { code: nextValues.code ?? '', name: nextValues.name ?? '' };
+    mode = 'add';
+    values = { code: '', name: '' };
 
-    modalTitle.textContent = (mode === 'edit') ? 'Chỉnh sửa ngôn ngữ' : 'Thêm ngôn ngữ mới';
-    submitText.textContent = (mode === 'edit') ? 'Cập nhật' : 'Thêm';
+    modalTitle.textContent = 'Thêm ngôn ngữ mới';
+    submitText.textContent = 'Thêm';
 
-    const codeInput = document.getElementById('code');
-    const codeGroup = document.getElementById('codeGroup');
-    const nameInput = document.getElementById('name');
     const errorBox = document.getElementById('errorBox');
-
-    errorBox.classList.add('hidden');
-    errorBox.textContent = '';
-
-    codeInput.value = (values.code ?? '').toString();
-    nameInput.value = (values.name ?? '').toString();
-
-    if (mode === 'edit') {
-      codeGroup.classList.add('hidden');
-      codeInput.required = false;
-      codeInput.setAttribute('readonly', '');
-      codeInput.setAttribute('aria-readonly', 'true');
-    } else {
-      codeGroup.classList.remove('hidden');
-      codeInput.required = true;
-      codeInput.removeAttribute('readonly');
-      codeInput.removeAttribute('aria-readonly');
-    }
+    const langSelect = document.getElementById('langSelect');
+    if (errorBox) { errorBox.classList.add('hidden'); errorBox.textContent = ''; }
+    if (langSelect) { langSelect.value = ''; langSelect.focus(); }
 
     modal.classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
-    setTimeout(() => (mode === 'edit' ? nameInput : codeInput).focus(), 0);
   }
 
   function closeModal({ replaceUrl = true } = {}) {
@@ -350,48 +326,27 @@ async function render(main) {
         if (res.error) throw res.error;
 
         // After adding a new language, translate existing POI descriptions
-          try {
-            const { data: pois, error: poiErr } = await supabase.from('pois').select('id,description');
-            if (poiErr) throw poiErr;
+        try {
+          const { data: pois, error: poiErr } = await supabase.from('pois').select('id,description');
+          if (poiErr) throw poiErr;
 
-            // Show progress UI
-            const progressArea = document.getElementById('translationProgress');
-            const progressText = document.getElementById('translationProgressText');
-            const progressBar = document.getElementById('translationProgressBar');
-
-            if (Array.isArray(pois) && pois.length) {
-              if (progressArea) progressArea.classList.remove('hidden');
-              for (let i = 0; i < pois.length; i++) {
-                const p = pois[i];
-                try {
-                  let translatedDesc = p.description ?? null;
-                  if (p.description && code !== 'vi') {
-                    if (progressText) progressText.textContent = `Đang dịch ${i + 1}/${pois.length}...`;
-                    translatedDesc = await translateText(p.description, 'vi', code);
-                  } else {
-                    if (progressText) progressText.textContent = `Sao chép mô tả ${i + 1}/${pois.length}...`;
-                  }
-
-                  await supabase.from('poitranslations').upsert({
-                    poi_id: p.id,
-                    lang_code: code,
-                    description: translatedDesc || null
-                  }, { onConflict: 'poi_id,lang_code' });
-                } catch (e) {
-                  console.error('Translation/upsert failed for POI', p?.id, e);
+          if (Array.isArray(pois) && pois.length) {
+            await Promise.all(pois.map(async (p) => {
+              try {
+                let translatedDesc = p.description ?? null;
+                if (p.description && code !== 'vi') {
+                  translatedDesc = await translateText(p.description, 'vi', code);
                 }
 
-                // update progress bar
-                if (progressBar) {
-                  try { progressBar.style.width = `${Math.round(((i + 1) / pois.length) * 100)}%`; } catch (e) { /* ignore */ }
-                }
+                await supabase.from('poitranslations').upsert({
+                  poi_id: p.id,
+                  lang_code: code,
+                  description: translatedDesc || null
+                }, { onConflict: 'poi_id,lang_code' });
+              } catch (e) {
+                console.error('Translation/upsert failed for POI', p?.id, e);
               }
-              if (progressText) progressText.textContent = 'Hoàn thành.';
-            }
-            // hide progress after short delay
-            if (progressArea) setTimeout(() => progressArea.classList.add('hidden'), 700);
-          } catch (e) {
-            console.error('Error translating existing POIs for new language', code, e);
+            }));
           }
         } catch (e) {
           console.error('Error translating existing POIs for new language', code, e);
