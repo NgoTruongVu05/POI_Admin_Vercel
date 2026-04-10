@@ -33,6 +33,27 @@ async function translateText(text, fromLang, toLang) {
   return data?.data?.translations?.[0]?.translatedText || text;
 }
 
+// Predefined language choices
+const AVAILABLE_LANGUAGES = [
+  { code: 'en', name: '(US) English' },
+  { code: 'es', name: '(ES) Español' },
+  { code: 'ja', name: '(JP) 日本語' },
+  { code: 'ko', name: '(KR) 한국어' },
+  { code: 'vi', name: '(VN) Tiếng Việt' },
+  { code: 'zh-CN', name: '(CN) 汉语' },
+
+  { code: 'fr', name: '(FR) Français' },
+  { code: 'ar', name: '(SA) العربية' },
+  { code: 'id', name: '(ID) Bahasa Indonesia' },
+  { code: 'th', name: '(TH) ไทย' },
+  { code: 'ms', name: '(MY) Bahasa Melayu' },
+  { code: 'de', name: '(DE) Deutsch' },
+  { code: 'pt', name: '(PT) Português' },
+  { code: 'it', name: '(IT) Italiano' },
+  { code: 'ru', name: '(RU) Русский' },
+  { code: 'hi', name: '(IN) हिन्दी' }
+];
+
 if (!ensureConfigured()) {
   // config page already rendered
 } else {
@@ -57,8 +78,7 @@ async function render(main) {
     `;
     return;
   }
-  const editCode = (getQueryParam('code') ?? '').trim().toLowerCase();
-  const isEdit = Boolean(editCode);
+  const isEdit = false;
   const isAdd = ((getQueryParam('new') ?? '').toString().trim() === '1');
 
   let languages = [];
@@ -74,15 +94,6 @@ async function render(main) {
 
   let values = { code: '', name: '' };
   let mode = 'add';
-  if (isEdit) {
-    const row = languages.find(x => (x.code ?? '').toString().toLowerCase() === editCode);
-    if (row) {
-      values = { code: row.code, name: row.name ?? '' };
-      mode = 'edit';
-    } else {
-      flash = { type: 'error', message: 'Không tìm thấy ngôn ngữ để sửa.' };
-    }
-  }
 
   main.innerHTML = `
     <div class="flex items-start justify-between gap-6">
@@ -140,15 +151,12 @@ async function render(main) {
               <div id="errorBox" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 hidden"></div>
 
               <form id="langForm" class="mt-5 space-y-5">
-                <label id="codeGroup" class="block">
-                  <div class="text-sm font-semibold text-slate-700">Mã ngôn ngữ <span class="text-rose-600">*</span></div>
-                  <input id="code" value="" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="vi" maxlength="2" required />
-                  <div class="mt-1 text-xs text-slate-500">Mã gồm 2 chữ cái, ví dụ: <span class="font-mono">vi</span>, <span class="font-mono">en</span>.</div>
-                </label>
-
                 <label class="block">
-                  <div class="text-sm font-semibold text-slate-700">Tên ngôn ngữ <span class="text-rose-600">*</span></div>
-                  <input id="name" value="" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="Tiếng Việt" maxlength="100" required />
+                  <div class="text-sm font-semibold text-slate-700">Chọn ngôn ngữ để thêm <span class="text-rose-600">*</span></div>
+                  <select id="langSelect" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                    <option value="">-- Chọn ngôn ngữ --</option>
+                  </select>
+                  <div class="mt-1 text-xs text-slate-500">Chọn một ngôn ngữ từ danh sách (chỉ hiển thị những ngôn ngữ chưa có).</div>
                 </label>
 
                 <div class="flex items-center justify-end gap-3">
@@ -157,6 +165,12 @@ async function render(main) {
                     <i class="bi bi-check2"></i>
                     <span id="submitText">Thêm</span>
                   </button>
+                </div>
+                <div id="translationProgress" class="mt-4 hidden">
+                  <div id="translationProgressText" class="text-sm text-slate-600 mb-2">Đang chuẩn bị...</div>
+                  <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                    <div id="translationProgressBar" class="bg-blue-600 h-2 w-0"></div>
+                  </div>
                 </div>
               </form>
             </div>
@@ -174,6 +188,30 @@ async function render(main) {
   const submitText = document.getElementById('submitText');
   const overlay = modal.querySelector('[data-modal-overlay]');
   const closeBtns = modal.querySelectorAll('[data-modal-close], [data-modal-cancel]');
+
+  // Populate language dropdown with choices not already present
+  const langSelect = document.getElementById('langSelect');
+  const addBtn = main.querySelector('[data-action="add"]');
+  try {
+    const available = AVAILABLE_LANGUAGES.filter(a => !languages.find(l => (l.code ?? '').toString().toLowerCase() === a.code.toString().toLowerCase()));
+    if (available.length === 0) {
+      // disable add button when no languages left
+      if (addBtn) {
+        addBtn.classList.add('opacity-50');
+        addBtn.setAttribute('aria-disabled', 'true');
+        addBtn.addEventListener('click', (e) => e.preventDefault());
+      }
+      if (langSelect) {
+        langSelect.innerHTML = '<option value="">(Tất cả ngôn ngữ đã được thêm)</option>';
+        langSelect.disabled = true;
+      }
+    } else {
+      langSelect.innerHTML = '<option value="">-- Chọn ngôn ngữ --</option>' + available.map(a => `<option value="${escapeHtml(a.code)}">${escapeHtml(a.name)}</option>`).join('');
+      langSelect.disabled = false;
+    }
+  } catch (e) {
+    console.error('Lỗi khi tạo danh sách ngôn ngữ', e);
+  }
 
   function setUrl(params, { replace = false } = {}) {
     const url = new URL(window.location.href);
@@ -240,29 +278,11 @@ async function render(main) {
     openModal('add', { code: '', name: '' });
   }
 
-  function openEdit(code, { syncUrl = true } = {}) {
-    const key = (code ?? '').toString().trim().toLowerCase();
-    const row = languages.find(x => (x.code ?? '').toString().toLowerCase() === key);
-    if (!row) {
-      window.alert('Không tìm thấy ngôn ngữ để sửa.');
-      return;
-    }
-    if (syncUrl) setUrl({ code: row.code });
-    openModal('edit', { code: row.code, name: row.name ?? '' });
-  }
-
   // Open modal by clicking
   main.querySelectorAll('[data-action="add"]').forEach(a => {
     a.addEventListener('click', (e) => {
       e.preventDefault();
       openAdd();
-    });
-  });
-
-  main.querySelectorAll('[data-action="edit"]').forEach(a => {
-    a.addEventListener('click', (e) => {
-      e.preventDefault();
-      openEdit(a.getAttribute('data-code'));
     });
   });
 
@@ -275,100 +295,11 @@ async function render(main) {
     if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
   });
 
-  // --- Delete modal (created dynamically) ---
-  const deleteModalHtml = `
-    <div id="deleteLangModal" class="fixed inset-0 z-50 hidden">
-      <div data-delete-overlay class="absolute inset-0 bg-slate-900/40"></div>
-      <div class="absolute inset-0 overflow-y-auto">
-        <div class="min-h-full flex items-start justify-center p-4 sm:p-6">
-          <div class="w-full max-w-lg bg-white border border-slate-200 rounded-2xl overflow-hidden">
-            <div class="px-6 py-5 border-b border-slate-100 flex items-start justify-between gap-4">
-              <div>
-                <h2 id="deleteModalTitle" class="text-lg font-semibold">Xóa ngôn ngữ</h2>
-                <p id="deleteModalText" class="text-sm text-slate-500 mt-1">Bạn có chắc muốn xóa?</p>
-              </div>
-              <button type="button" data-delete-close class="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition" aria-label="Đóng">
-                <i class="bi bi-x-lg"></i>
-              </button>
-            </div>
-
-            <div class="p-6">
-              <div class="text-sm text-slate-600">Hành động này sẽ xóa tất cả bản dịch POI cho ngôn ngữ này.</div>
-              <div class="mt-6 flex items-center justify-end gap-3">
-                <button id="deleteCancelBtn" type="button" class="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 text-slate-700 px-4 py-2 text-sm font-semibold hover:bg-slate-50 transition">Huỷ</button>
-                <button id="deleteConfirmBtn" type="button" class="inline-flex items-center gap-2 rounded-xl bg-rose-600 text-white px-4 py-2 text-sm font-semibold hover:bg-rose-700 transition">Xóa</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-
-  document.body.insertAdjacentHTML('beforeend', deleteModalHtml);
-  const deleteModal = document.getElementById('deleteLangModal');
-  const deleteOverlay = deleteModal.querySelector('[data-delete-overlay]');
-  const deleteCloseBtns = deleteModal.querySelectorAll('[data-delete-close], #deleteCancelBtn');
-  const deleteConfirmBtn = document.getElementById('deleteConfirmBtn');
-  const deleteModalText = document.getElementById('deleteModalText');
-  let _pendingDeleteCode = null;
-
-  function openDeleteModal(code) {
-    _pendingDeleteCode = code;
-    deleteModalText.textContent = `Xóa ngôn ngữ "${code}" và tất cả bản dịch POI liên quan? Hành động này không thể hoàn tác.`;
-    deleteModal.classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
-    deleteConfirmBtn.focus();
-  }
-
-  function closeDeleteModal() {
-    deleteModal.classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
-    _pendingDeleteCode = null;
-  }
-
-  deleteOverlay.addEventListener('click', closeDeleteModal);
-  deleteCloseBtns.forEach(b => b.addEventListener('click', closeDeleteModal));
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !deleteModal.classList.contains('hidden')) closeDeleteModal();
-  });
-
-  // Wire delete buttons to open modal
-  main.querySelectorAll('[data-action="delete"]').forEach(b => {
-    b.addEventListener('click', (e) => {
-      e.preventDefault();
-      const code = b.getAttribute('data-code');
-      if (!code) return;
-      openDeleteModal(code);
-    });
-  });
-
-  // Confirm deletion
-  deleteConfirmBtn.addEventListener('click', async () => {
-    const code = _pendingDeleteCode;
-    if (!code) return closeDeleteModal();
-    try {
-      // Remove translations first (defensive)
-      const delT = await supabase.from('poitranslations').delete().eq('lang_code', code);
-      if (delT.error) throw delT.error;
-
-      const delL = await supabase.from('languages').delete().eq('code', code);
-      if (delL.error) throw delL.error;
-
-      closeDeleteModal();
-      window.location.href = '/languages';
-    } catch (err) {
-      console.error('Xóa ngôn ngữ thất bại', err);
-      window.alert('Không thể xóa ngôn ngữ. Kiểm tra console để biết chi tiết.');
-      closeDeleteModal();
-    }
-  });
+  
 
   // Back/forward navigation
   window.addEventListener('popstate', () => {
-    const code = (getQueryParam('code') ?? '').trim().toLowerCase();
     const isNew = ((getQueryParam('new') ?? '').toString().trim() === '1');
-    if (code) return openEdit(code, { syncUrl: false });
     if (isNew) return openAdd({ syncUrl: false });
     closeModal({ replaceUrl: false });
   });
@@ -382,14 +313,12 @@ async function render(main) {
     e.preventDefault();
     errorBox.classList.add('hidden');
 
-    const code = document.getElementById('code').value.trim().toLowerCase();
-    const name = document.getElementById('name').value.trim();
+    const code = document.getElementById('langSelect')?.value?.trim();
+    const selected = AVAILABLE_LANGUAGES.find(x => x.code === code);
+    const name = selected?.name ?? '';
 
     const errors = [];
-    if (!code) errors.push('Vui lòng nhập mã ngôn ngữ.');
-    else if (!/^[a-z]{2}$/.test(code)) errors.push('Mã ngôn ngữ phải gồm 2 chữ cái (ví dụ: vi, en).');
-    if (!name) errors.push('Vui lòng nhập tên ngôn ngữ.');
-    else if (name.length > 100) errors.push('Tên ngôn ngữ tối đa 100 ký tự.');
+    if (!code) errors.push('Vui lòng chọn ngôn ngữ.');
 
     if (errors.length) {
       errorBox.innerHTML = `<ul class="list-disc pl-5 space-y-1">${errors.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul>`;
@@ -398,7 +327,7 @@ async function render(main) {
     }
 
     // Kiểm tra xem mã ngôn ngữ có được Langbly hỗ trợ không (nếu không phải 'vi')
-    if (mode === 'add' && code !== 'vi') {
+    if (mode === 'add' && code && code !== 'vi') {
       try {
         // Gọi translate nhanh với chuỗi ngắn để kiểm tra hỗ trợ
         await translateText('Hello', 'vi', code);
@@ -421,28 +350,48 @@ async function render(main) {
         if (res.error) throw res.error;
 
         // After adding a new language, translate existing POI descriptions
-        try {
-          const { data: pois, error: poiErr } = await supabase.from('pois').select('id,description');
-          if (poiErr) throw poiErr;
+          try {
+            const { data: pois, error: poiErr } = await supabase.from('pois').select('id,description');
+            if (poiErr) throw poiErr;
 
-          if (Array.isArray(pois) && pois.length) {
-            await Promise.all(pois.map(async (p) => {
-              try {
-                let translatedDesc = p.description ?? null;
-                // Assume original source is Vietnamese ('vi'). If adding 'vi', just copy.
-                if (p.description && code !== 'vi') {
-                  translatedDesc = await translateText(p.description, 'vi', code);
+            // Show progress UI
+            const progressArea = document.getElementById('translationProgress');
+            const progressText = document.getElementById('translationProgressText');
+            const progressBar = document.getElementById('translationProgressBar');
+
+            if (Array.isArray(pois) && pois.length) {
+              if (progressArea) progressArea.classList.remove('hidden');
+              for (let i = 0; i < pois.length; i++) {
+                const p = pois[i];
+                try {
+                  let translatedDesc = p.description ?? null;
+                  if (p.description && code !== 'vi') {
+                    if (progressText) progressText.textContent = `Đang dịch ${i + 1}/${pois.length}...`;
+                    translatedDesc = await translateText(p.description, 'vi', code);
+                  } else {
+                    if (progressText) progressText.textContent = `Sao chép mô tả ${i + 1}/${pois.length}...`;
+                  }
+
+                  await supabase.from('poitranslations').upsert({
+                    poi_id: p.id,
+                    lang_code: code,
+                    description: translatedDesc || null
+                  }, { onConflict: 'poi_id,lang_code' });
+                } catch (e) {
+                  console.error('Translation/upsert failed for POI', p?.id, e);
                 }
 
-                await supabase.from('poitranslations').upsert({
-                  poi_id: p.id,
-                  lang_code: code,
-                  description: translatedDesc || null
-                }, { onConflict: 'poi_id,lang_code' });
-              } catch (e) {
-                console.error('Translation/upsert failed for POI', p?.id, e);
+                // update progress bar
+                if (progressBar) {
+                  try { progressBar.style.width = `${Math.round(((i + 1) / pois.length) * 100)}%`; } catch (e) { /* ignore */ }
+                }
               }
-            }));
+              if (progressText) progressText.textContent = 'Hoàn thành.';
+            }
+            // hide progress after short delay
+            if (progressArea) setTimeout(() => progressArea.classList.add('hidden'), 700);
+          } catch (e) {
+            console.error('Error translating existing POIs for new language', code, e);
           }
         } catch (e) {
           console.error('Error translating existing POIs for new language', code, e);
@@ -475,14 +424,8 @@ async function render(main) {
         <td class="px-4 py-4 text-sm">${escapeHtml(name)}</td>
         <td class="px-4 py-4 text-sm">
           <div class="flex flex-wrap gap-2">
-            <a href="/languages?code=${encodeURIComponent(code)}" data-action="edit" data-code="${escapeHtml(code)}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition">
-              <i class="bi bi-pencil"></i>
-              Sửa
-            </a>
-            <button data-action="delete" data-code="${escapeHtml(code)}" class="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-3 py-2 text-rose-600 text-xs font-semibold hover:bg-rose-50 transition">
-              <i class="bi bi-trash"></i>
-              Xóa
-            </button>
+            
+            
           </div>
         </td>
       </tr>
