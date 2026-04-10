@@ -285,9 +285,13 @@ async function render(main) {
             } catch (e) { return null; }
           }
 
-          const filePath = `${id}/${Date.now()}_${file.name}`;
-          const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
-          if (uploadError) throw uploadError;
+          const filePath = `${id}/${Date.now()}_${encodeURIComponent(file.name)}`;
+          const { data: uploadData, error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file, { contentType: file.type });
+          if (uploadError) {
+            console.error('Image upload failed', uploadError, { filePath, file });
+            throw uploadError;
+          }
+          // getPublicUrl is synchronous in supabase-js v2 and returns { data: { publicUrl } }
           const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(filePath);
           imageUrl = publicData?.publicUrl ?? publicData?.publicURL ?? null;
 
