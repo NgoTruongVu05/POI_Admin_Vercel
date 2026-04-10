@@ -13,6 +13,7 @@ if (!ensureConfigured()) {
     await render(main);
   }
 }
+// Hello world
 
 async function render(main) {
   const L = await waitForGlobal('L', 5000);
