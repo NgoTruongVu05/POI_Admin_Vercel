@@ -260,6 +260,7 @@ async function render(main) {
     const file = imageFileInput?.files?.[0] ?? null;
 
     try {
+      console.debug('POI form submit debug', { isEdit, editId, rawId, id, file });
         // upload image if a new file was chosen
         let imageUrl = values.image || null;
         if (file) {
@@ -300,12 +301,14 @@ async function render(main) {
         }
 
       if (isEdit) {
+        console.debug('Performing UPDATE for POI', { id });
         const res = await supabase
           .from('pois')
           .update({ name, description: description || null, lat, lng, image: imageUrl, maplink: maplink || null })
           .eq('id', id);
         if (res.error) throw res.error;
       } else {
+        console.debug('Performing INSERT for POI', { id });
         const res = await supabase
           .from('pois')
           .insert({ id, name, description: description || null, lat, lng, user_id: userId, image: imageUrl, maplink: maplink || null });
