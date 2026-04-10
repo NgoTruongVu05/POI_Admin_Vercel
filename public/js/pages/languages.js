@@ -4,6 +4,35 @@ import { getSupabase } from '../supabaseClient.js';
 import { renderLayout } from '../layout.js';
 import { escapeHtml, getQueryParam } from '../ui.js';
 
+// Simple translator helper (uses Langbly same as POI form)
+async function translateText(text, fromLang, toLang) {
+  if (!text) return text;
+  const apiUrl = 'https://api.langbly.com/language/translate/v2';
+  const apiKey = 'PkgVTFvwtPoRdYKHNgoRFN';
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': apiKey
+    },
+    body: JSON.stringify({
+      q: text,
+      source: fromLang,
+      target: toLang
+    })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error('Translation API error:', errText);
+    throw new Error('Translation failed');
+  }
+
+  const data = await response.json();
+  return data?.data?.translations?.[0]?.translatedText || text;
+}
+
 if (!ensureConfigured()) {
   // config page already rendered
 } else {
@@ -237,11 +266,102 @@ async function render(main) {
     });
   });
 
+  
+
   // Close modal
   overlay.addEventListener('click', () => closeModal());
   closeBtns.forEach(btn => btn.addEventListener('click', () => closeModal()));
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+  });
+
+  // --- Delete modal (created dynamically) ---
+  const deleteModalHtml = `
+    <div id="deleteLangModal" class="fixed inset-0 z-50 hidden">
+      <div data-delete-overlay class="absolute inset-0 bg-slate-900/40"></div>
+      <div class="absolute inset-0 overflow-y-auto">
+        <div class="min-h-full flex items-start justify-center p-4 sm:p-6">
+          <div class="w-full max-w-lg bg-white border border-slate-200 rounded-2xl overflow-hidden">
+            <div class="px-6 py-5 border-b border-slate-100 flex items-start justify-between gap-4">
+              <div>
+                <h2 id="deleteModalTitle" class="text-lg font-semibold">Xóa ngôn ngữ</h2>
+                <p id="deleteModalText" class="text-sm text-slate-500 mt-1">Bạn có chắc muốn xóa?</p>
+              </div>
+              <button type="button" data-delete-close class="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition" aria-label="Đóng">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+
+            <div class="p-6">
+              <div class="text-sm text-slate-600">Hành động này sẽ xóa tất cả bản dịch POI cho ngôn ngữ này.</div>
+              <div class="mt-6 flex items-center justify-end gap-3">
+                <button id="deleteCancelBtn" type="button" class="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 text-slate-700 px-4 py-2 text-sm font-semibold hover:bg-slate-50 transition">Huỷ</button>
+                <button id="deleteConfirmBtn" type="button" class="inline-flex items-center gap-2 rounded-xl bg-rose-600 text-white px-4 py-2 text-sm font-semibold hover:bg-rose-700 transition">Xóa</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', deleteModalHtml);
+  const deleteModal = document.getElementById('deleteLangModal');
+  const deleteOverlay = deleteModal.querySelector('[data-delete-overlay]');
+  const deleteCloseBtns = deleteModal.querySelectorAll('[data-delete-close], #deleteCancelBtn');
+  const deleteConfirmBtn = document.getElementById('deleteConfirmBtn');
+  const deleteModalText = document.getElementById('deleteModalText');
+  let _pendingDeleteCode = null;
+
+  function openDeleteModal(code) {
+    _pendingDeleteCode = code;
+    deleteModalText.textContent = `Xóa ngôn ngữ "${code}" và tất cả bản dịch POI liên quan? Hành động này không thể hoàn tác.`;
+    deleteModal.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+    deleteConfirmBtn.focus();
+  }
+
+  function closeDeleteModal() {
+    deleteModal.classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+    _pendingDeleteCode = null;
+  }
+
+  deleteOverlay.addEventListener('click', closeDeleteModal);
+  deleteCloseBtns.forEach(b => b.addEventListener('click', closeDeleteModal));
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !deleteModal.classList.contains('hidden')) closeDeleteModal();
+  });
+
+  // Wire delete buttons to open modal
+  main.querySelectorAll('[data-action="delete"]').forEach(b => {
+    b.addEventListener('click', (e) => {
+      e.preventDefault();
+      const code = b.getAttribute('data-code');
+      if (!code) return;
+      openDeleteModal(code);
+    });
+  });
+
+  // Confirm deletion
+  deleteConfirmBtn.addEventListener('click', async () => {
+    const code = _pendingDeleteCode;
+    if (!code) return closeDeleteModal();
+    try {
+      // Remove translations first (defensive)
+      const delT = await supabase.from('poitranslations').delete().eq('lang_code', code);
+      if (delT.error) throw delT.error;
+
+      const delL = await supabase.from('languages').delete().eq('code', code);
+      if (delL.error) throw delL.error;
+
+      closeDeleteModal();
+      window.location.href = '/languages';
+    } catch (err) {
+      console.error('Xóa ngôn ngữ thất bại', err);
+      window.alert('Không thể xóa ngôn ngữ. Kiểm tra console để biết chi tiết.');
+      closeDeleteModal();
+    }
   });
 
   // Back/forward navigation
@@ -277,6 +397,18 @@ async function render(main) {
       return;
     }
 
+    // Kiểm tra xem mã ngôn ngữ có được Langbly hỗ trợ không (nếu không phải 'vi')
+    if (mode === 'add' && code !== 'vi') {
+      try {
+        // Gọi translate nhanh với chuỗi ngắn để kiểm tra hỗ trợ
+        await translateText('Hello', 'vi', code);
+      } catch (e) {
+        errorBox.textContent = 'Mã ngôn ngữ không được hỗ trợ bởi Langbly hoặc có lỗi kết nối.';
+        errorBox.classList.remove('hidden');
+        return;
+      }
+    }
+
     submitBtn.disabled = true;
     submitBtn.classList.add('opacity-70');
 
@@ -287,6 +419,34 @@ async function render(main) {
       } else {
         const res = await supabase.from('languages').insert({ code, name });
         if (res.error) throw res.error;
+
+        // After adding a new language, translate existing POI descriptions
+        try {
+          const { data: pois, error: poiErr } = await supabase.from('pois').select('id,description');
+          if (poiErr) throw poiErr;
+
+          if (Array.isArray(pois) && pois.length) {
+            await Promise.all(pois.map(async (p) => {
+              try {
+                let translatedDesc = p.description ?? null;
+                // Assume original source is Vietnamese ('vi'). If adding 'vi', just copy.
+                if (p.description && code !== 'vi') {
+                  translatedDesc = await translateText(p.description, 'vi', code);
+                }
+
+                await supabase.from('poitranslations').upsert({
+                  poi_id: p.id,
+                  lang_code: code,
+                  description: translatedDesc || null
+                }, { onConflict: 'poi_id,lang_code' });
+              } catch (e) {
+                console.error('Translation/upsert failed for POI', p?.id, e);
+              }
+            }));
+          }
+        } catch (e) {
+          console.error('Error translating existing POIs for new language', code, e);
+        }
       }
 
       window.location.href = '/languages';
@@ -319,6 +479,10 @@ async function render(main) {
               <i class="bi bi-pencil"></i>
               Sửa
             </a>
+            <button data-action="delete" data-code="${escapeHtml(code)}" class="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-3 py-2 text-rose-600 text-xs font-semibold hover:bg-rose-50 transition">
+              <i class="bi bi-trash"></i>
+              Xóa
+            </button>
           </div>
         </td>
       </tr>
