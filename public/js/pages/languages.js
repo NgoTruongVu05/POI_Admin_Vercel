@@ -8,7 +8,7 @@ import { escapeHtml, getQueryParam } from '../ui.js';
 async function translateText(text, fromLang, toLang) {
   if (!text) return text;
   const apiUrl = 'https://api.langbly.com/language/translate/v2';
-  const apiKey = 'PkgVTFvwtPoRdYKHNgoRFN';
+  const apiKey = 'CxENGTZZFjFuHcvVXiugTd';
 
   const response = await fetch(apiUrl, {
     method: 'POST',
