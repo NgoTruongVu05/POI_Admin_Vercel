@@ -36,19 +36,19 @@ async function render(main) {
   let flash = { type: '', message: '' };
 
   try {
-    const res = await supabase.from('languages').select('code,name,is_active').order('code', { ascending: true });
+    const res = await supabase.from('languages').select('code,name').order('code', { ascending: true });
     if (res.error) throw res.error;
     languages = res.data ?? [];
   } catch {
     languages = [];
   }
 
-  let values = { code: '', name: '', is_active: true };
+  let values = { code: '', name: '' };
   let mode = 'add';
   if (isEdit) {
     const row = languages.find(x => (x.code ?? '').toString().toLowerCase() === editCode);
     if (row) {
-      values = { code: row.code, name: row.name ?? '', is_active: Boolean(row.is_active) };
+      values = { code: row.code, name: row.name ?? '' };
       mode = 'edit';
     } else {
       flash = { type: 'error', message: 'Không tìm thấy ngôn ngữ để sửa.' };
@@ -79,13 +79,12 @@ async function render(main) {
               <tr class="bg-slate-50 text-left text-sm text-slate-600 uppercase tracking-wider">
                 <th class="px-4 py-3">Mã</th>
                 <th class="px-4 py-3">Tên</th>
-                <th class="px-4 py-3">Trạng thái</th>
                 <th class="px-4 py-3">Hành động</th>
               </tr>
             </thead>
             <tbody>
               ${languages.length === 0 ? `
-                <tr><td class="px-4 py-4 text-sm text-slate-500" colspan="4">Chưa có ngôn ngữ nào.</td></tr>
+                <tr><td class="px-4 py-4 text-sm text-slate-500" colspan="3">Chưa có ngôn ngữ nào.</td></tr>
               ` : languages.map(renderRow).join('')}
             </tbody>
           </table>
@@ -101,7 +100,7 @@ async function render(main) {
             <div class="px-6 py-5 border-b border-slate-100 flex items-start justify-between gap-4">
               <div>
                 <h2 id="modalTitle" class="text-lg font-semibold">Thêm ngôn ngữ mới</h2>
-                <p class="text-sm text-slate-500 mt-1">Nhập mã, tên và trạng thái của ngôn ngữ.</p>
+                <p class="text-sm text-slate-500 mt-1">Nhập mã và tên của ngôn ngữ.</p>
               </div>
               <button type="button" data-modal-close class="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition" aria-label="Đóng">
                 <i class="bi bi-x-lg"></i>
@@ -160,7 +159,7 @@ async function render(main) {
 
   function openModal(nextMode, nextValues) {
     mode = nextMode;
-    values = { code: nextValues.code ?? '', name: nextValues.name ?? '', is_active: Boolean(nextValues.is_active) };
+    values = { code: nextValues.code ?? '', name: nextValues.name ?? '' };
 
     modalTitle.textContent = (mode === 'edit') ? 'Chỉnh sửa ngôn ngữ' : 'Thêm ngôn ngữ mới';
     submitText.textContent = (mode === 'edit') ? 'Cập nhật' : 'Thêm';
@@ -209,7 +208,7 @@ async function render(main) {
 
   function openAdd({ syncUrl = true } = {}) {
     if (syncUrl) setUrl({ isNew: true });
-    openModal('add', { code: '', name: '', is_active: true });
+    openModal('add', { code: '', name: '' });
   }
 
   function openEdit(code, { syncUrl = true } = {}) {
@@ -220,7 +219,7 @@ async function render(main) {
       return;
     }
     if (syncUrl) setUrl({ code: row.code });
-    openModal('edit', { code: row.code, name: row.name ?? '', is_active: Boolean(row.is_active) });
+    openModal('edit', { code: row.code, name: row.name ?? '' });
   }
 
   // Open modal by clicking
@@ -286,7 +285,7 @@ async function render(main) {
         const res = await supabase.from('languages').update({ name }).eq('code', code);
         if (res.error) throw res.error;
       } else {
-        const res = await supabase.from('languages').insert({ code, name, is_active: true });
+        const res = await supabase.from('languages').insert({ code, name });
         if (res.error) throw res.error;
       }
 
@@ -304,22 +303,16 @@ async function render(main) {
   if (isEdit && values.code) {
     openModal('edit', values);
   } else if (isAdd) {
-    openModal('add', { code: '', name: '', is_active: true });
+    openModal('add', { code: '', name: '' });
   }
 
   function renderRow(language) {
     const code = (language.code ?? '').toString();
     const name = (language.name ?? '').toString();
-    const isActive = Boolean(language.is_active);
     return `
       <tr class="border-t border-slate-100">
         <td class="px-4 py-4 text-sm font-semibold">${escapeHtml(code)}</td>
         <td class="px-4 py-4 text-sm">${escapeHtml(name)}</td>
-        <td class="px-4 py-4 text-sm">
-          <span class="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold ${isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}">
-            ${isActive ? 'Hoạt động' : 'Tạm ngưng'}
-          </span>
-        </td>
         <td class="px-4 py-4 text-sm">
           <div class="flex flex-wrap gap-2">
             <a href="/languages?code=${encodeURIComponent(code)}" data-action="edit" data-code="${escapeHtml(code)}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition">

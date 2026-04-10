@@ -330,8 +330,7 @@ async function render(main) {
 
       const { data: activeLanguages, error: langError } = await supabase
         .from('languages')
-        .select('code')
-        .eq('is_active', true);
+        .select('code');
 
       if (langError) {
         console.error('Lỗi lấy ngôn ngữ:', langError);
