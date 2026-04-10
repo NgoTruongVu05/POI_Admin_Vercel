@@ -119,12 +119,11 @@ async function render(main) {
               <tr class="bg-slate-50 text-left text-sm text-slate-600 uppercase tracking-wider">
                 <th class="px-4 py-3">Mã</th>
                 <th class="px-4 py-3">Tên</th>
-                <th class="px-4 py-3">Hành động</th>
               </tr>
             </thead>
             <tbody>
               ${languages.length === 0 ? `
-                <tr><td class="px-4 py-4 text-sm text-slate-500" colspan="3">Chưa có ngôn ngữ nào.</td></tr>
+                <tr><td class="px-4 py-4 text-sm text-slate-500" colspan="2">Chưa có ngôn ngữ nào.</td></tr>
               ` : languages.map(renderRow).join('')}
             </tbody>
           </table>
@@ -377,12 +376,6 @@ async function render(main) {
       <tr class="border-t border-slate-100">
         <td class="px-4 py-4 text-sm font-semibold">${escapeHtml(code)}</td>
         <td class="px-4 py-4 text-sm">${escapeHtml(name)}</td>
-        <td class="px-4 py-4 text-sm">
-          <div class="flex flex-wrap gap-2">
-            
-            
-          </div>
-        </td>
       </tr>
     `;
   }
