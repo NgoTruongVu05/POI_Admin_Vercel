@@ -76,6 +76,8 @@ function parseStorageUrl(u) {
 
 export default async function handler(req, res) {
   try {
+    console.log('[DELETE POI] Request:', { method: req.method, url: req.url, query: req.query, path: req.query?.id });
+    
     if (req.method !== 'DELETE') {
       res.setHeader('Allow', 'DELETE');
       return json(res, 405, { error: 'Method Not Allowed' });
@@ -103,6 +105,7 @@ export default async function handler(req, res) {
     const { supabaseAdmin } = adminClient;
 
     const id = (req.query?.id ?? '').toString();
+    console.log('[DELETE POI] Extracted id:', id, 'Role:', role);
     if (!id) return json(res, 400, { error: 'Missing id.' });
 
     if (role === 'manager') {

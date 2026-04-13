@@ -15,8 +15,10 @@
   ],
   "routes": [
     { "src": "/$", "dest": "/index.html" },
-
+    
     { "handle": "filesystem" },
+    
+    { "src": "/api/pois/(?<id>[^/]+)$", "dest": "/api/pois/[id].js?id=$id", "methods": ["DELETE", "GET", "POST", "PUT", "PATCH"] },
 
     { "src": "/([^./]+)$", "dest": "/$1/index.html" },
     { "src": "/([^./]+)/$", "dest": "/$1/index.html" }
