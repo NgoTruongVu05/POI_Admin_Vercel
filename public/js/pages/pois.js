@@ -240,7 +240,7 @@ async function render(main) {
 
     confirmBtn.disabled = true;
     try {
-      // Call server endpoint to delete POI (server will remove storage file using service key)
+      // Call server endpoint to delete POI
       const token = (session?.access_token ?? '') || '';
       const resp = await fetch(`/api/pois/${encodeURIComponent(pendingDeleteId)}`, {
         method: 'DELETE',
@@ -248,19 +248,28 @@ async function render(main) {
       });
       const j = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(j?.error || 'Delete failed');
-      // Success: close modal and show success message instead of immediate reload
+      
+      // Success: close modal and show success message
       closeDelete();
       showFlash(j?.notice || 'Xoá POI thành công.', 'success');
-      // Optionally remove the deleted row from the list to reflect UI immediately
+      
+      // Remove from data and re-render list
+      items = items.filter(poi => poi.id !== pendingDeleteId);
+      applyFilter(search.value);
+      
+      // Also try removing from DOM as fallback
       try {
-        const row = poiList.querySelector(`.poi-row[data-id="${pendingDeleteId}"]`);
-        if (row) row.remove();
-      } catch (e) { /* ignore */ }
+        const row = document.querySelector(`[data-id="${CSS.escape(pendingDeleteId)}"]`);
+        if (row && row.classList.contains('poi-row')) {
+          row.remove();
+        }
+      } catch (e) { 
+        console.warn('Fallback DOM removal failed:', e);
+      }
     } catch (err) {
       const message = (err?.message) ? err.message.toString() : 'Không thể xoá POI. Vui lòng thử lại.';
       showFlash(message, 'error');
       confirmBtn.disabled = false;
-      // keep modal open so user can see message and retry/inspect
       console.warn('Delete POI error:', err);
     }
   });
