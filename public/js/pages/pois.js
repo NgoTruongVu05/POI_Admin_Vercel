@@ -253,20 +253,10 @@ async function render(main) {
       closeDelete();
       showFlash(j?.notice || 'Xoá POI thành công.', 'success');
       
-      // Remove from data and re-render list
-      pois = pois.filter(poi => poi.id !== pendingDeleteId);
-      renderList(pois);
-      applyFilter(search.value);
-      
-      // Also try removing from DOM as fallback
-      try {
-        const row = document.querySelector(`[data-id="${CSS.escape(pendingDeleteId)}"]`);
-        if (row && row.classList.contains('poi-row')) {
-          row.remove();
-        }
-      } catch (e) { 
-        console.warn('Fallback DOM removal failed:', e);
-      }
+      // Reload page after 1 second to ensure data is refreshed from server
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     } catch (err) {
       const message = (err?.message) ? err.message.toString() : 'Không thể xoá POI. Vui lòng thử lại.';
       showFlash(message, 'error');
