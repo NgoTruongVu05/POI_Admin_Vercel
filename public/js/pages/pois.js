@@ -249,14 +249,8 @@ async function render(main) {
       const j = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(j?.error || 'Delete failed');
       
-      // Success: close modal and show success message
-      closeDelete();
-      showFlash(j?.notice || 'Xoá POI thành công.', 'success');
-      
-      // Reload page after 1 second to ensure data is refreshed from server
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      // Success: reload page immediately
+      window.location.reload();
     } catch (err) {
       const message = (err?.message) ? err.message.toString() : 'Không thể xoá POI. Vui lòng thử lại.';
       showFlash(message, 'error');
