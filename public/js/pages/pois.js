@@ -254,7 +254,8 @@ async function render(main) {
       showFlash(j?.notice || 'Xoá POI thành công.', 'success');
       
       // Remove from data and re-render list
-      items = items.filter(poi => poi.id !== pendingDeleteId);
+      pois = pois.filter(poi => poi.id !== pendingDeleteId);
+      renderList(pois);
       applyFilter(search.value);
       
       // Also try removing from DOM as fallback
