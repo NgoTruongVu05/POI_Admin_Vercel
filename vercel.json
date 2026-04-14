@@ -18,6 +18,11 @@
     
     { "handle": "filesystem" },
     
+    { "src": "/api/test-health$", "dest": "/api/test-health.js", "methods": ["GET"] },
+    { "src": "/api/heartbeat$", "dest": "/api/heartbeat.js", "methods": ["GET", "POST"] },
+    { "src": "/api/managers$", "dest": "/api/managers/index.js", "methods": ["GET", "POST", "DELETE"] },
+    { "src": "/api/managers/(?<id>[^/]+)$", "dest": "/api/managers/[id].js?id=$id", "methods": ["PATCH", "DELETE"] },
+    
     { "src": "/api/pois/(?<id>[^/]+)$", "dest": "/api/pois/[id].js?id=$id", "methods": ["DELETE", "GET", "POST", "PUT", "PATCH"] },
 
     { "src": "/([^./]+)$", "dest": "/$1/index.html" },
