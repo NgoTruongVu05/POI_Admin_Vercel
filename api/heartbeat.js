@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
+const ACTIVE_USERS_WINDOW_SECONDS = 30;
+
 function json(res, status, body) {
   res.status(status).setHeader('Content-Type', 'application/json');
   res.end(JSON.stringify(body));
@@ -112,12 +114,7 @@ export default async function handler(req, res) {
       return json(res, 403, { error: 'Forbidden' });
     }
 
-    const windowSecondsRaw = Number(req.query?.window_seconds ?? 120);
-    const windowSeconds = Number.isFinite(windowSecondsRaw) && windowSecondsRaw > 0
-      ? Math.min(Math.floor(windowSecondsRaw), 3600)
-      : 120;
-
-    const cutoff = new Date(Date.now() - (windowSeconds * 1000)).toISOString();
+    const cutoff = new Date(Date.now() - (ACTIVE_USERS_WINDOW_SECONDS * 1000)).toISOString();
 
     const countRes = await supabaseAdmin
       .from('app_heartbeats')
@@ -128,7 +125,7 @@ export default async function handler(req, res) {
 
     return json(res, 200, {
       active_users: countRes.count ?? 0,
-      window_seconds: windowSeconds
+      window_seconds: ACTIVE_USERS_WINDOW_SECONDS
     });
   } catch (err) {
     return json(res, 500, { error: (err?.message ?? 'Server error').toString() });
