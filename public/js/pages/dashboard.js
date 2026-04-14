@@ -5,6 +5,7 @@ import { renderLayout } from '../layout.js';
 import { escapeHtml } from '../ui.js';
 
 const HEARTBEAT_POLL_MS = 10000;
+const HEARTBEAT_WINDOW_SECONDS = 30;
 let heartbeatPollTimer = null;
 
 if (!ensureConfigured()) {
@@ -124,7 +125,7 @@ async function getActiveUsersCount(session) {
   if (!accessToken) return 0;
 
   try {
-    const response = await fetch('/api/heartbeat?window_seconds=120', {
+    const response = await fetch(`/api/heartbeat?window_seconds=${HEARTBEAT_WINDOW_SECONDS}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${accessToken}`
