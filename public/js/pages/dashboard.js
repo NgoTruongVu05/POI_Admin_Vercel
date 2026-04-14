@@ -26,6 +26,7 @@ async function render(main) {
   const role = ((session?.user?.user_metadata?.role ?? '') || '').toString();
 
   let poiTotal = 0;
+  let userTotal = 0;
   let recentPois = [];
 
   try {
@@ -35,6 +36,9 @@ async function render(main) {
 
     poiTotal = countRes.count ?? 0;
 
+    const usersRes = await supabase.from('user_roles').select('*', { count: 'exact', head: true });
+    userTotal = usersRes.count ?? 0;
+
     let recentQuery = supabase.from('pois').select('id,name').order('id', { ascending: false }).limit(2);
     if (role === 'manager' && userId) recentQuery = recentQuery.eq('user_id', userId);
     const recentRes = await recentQuery;
@@ -43,11 +47,11 @@ async function render(main) {
     recentPois = recentRes.data ?? [];
   } catch {
     poiTotal = 0;
+    userTotal = 0;
     recentPois = [];
   }
 
   const visits = await getActiveUsersCount(session);
-  const growth = '+12%';
 
   main.innerHTML = `
     <div>
@@ -75,8 +79,8 @@ async function render(main) {
       <div class="bg-white border border-slate-200 rounded-2xl p-5 flex items-center gap-4">
         <div class="w-12 h-12 rounded-2xl bg-violet-600 text-white flex items-center justify-center"><i class="bi bi-graph-up"></i></div>
         <div>
-          <div class="text-xs text-slate-500">Tăng trưởng</div>
-          <div class="text-2xl font-semibold mt-0.5">${escapeHtml(growth)}</div>
+          <div class="text-xs text-slate-500">Số lượng người dùng</div>
+          <div class="text-2xl font-semibold mt-0.5">${escapeHtml(String(userTotal))}</div>
         </div>
       </div>
     </div>
