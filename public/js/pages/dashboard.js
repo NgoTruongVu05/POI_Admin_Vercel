@@ -78,7 +78,7 @@ async function render(main) {
         <div class="w-12 h-12 rounded-2xl bg-violet-600 text-white flex items-center justify-center"><i class="bi bi-graph-up"></i></div>
         <div>
           <div class="text-xs text-slate-500">Số lượng du khách</div>
-          <div class="text-2xl font-semibold mt-0.5">${escapeHtml(String(visitorTotal))}</div>
+          <div class="text-2xl font-semibold mt-0.5" data-total-visitors-count>${escapeHtml(String(visitorTotal))}</div>
         </div>
       </div>
     </div>
@@ -107,14 +107,23 @@ function startActiveUsersPolling(main, session) {
   stopActiveUsersPolling();
 
   const tick = async () => {
-    const target = main.querySelector('[data-active-users-count]');
-    if (!target) {
+    const activeUsersTarget = main.querySelector('[data-active-users-count]');
+    const totalVisitorsTarget = main.querySelector('[data-total-visitors-count]');
+
+    if (!activeUsersTarget && !totalVisitorsTarget) {
       stopActiveUsersPolling();
       return;
     }
 
-    const count = await getActiveUsersCount(session);
-    target.textContent = String(count);
+    const stats = await getHeartbeatStats(session);
+
+    if (activeUsersTarget) {
+      activeUsersTarget.textContent = String(stats.activeUsers);
+    }
+
+    if (totalVisitorsTarget) {
+      totalVisitorsTarget.textContent = String(stats.totalVisitors);
+    }
   };
 
   heartbeatPollTimer = setInterval(() => {
