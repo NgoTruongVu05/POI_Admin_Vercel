@@ -36,7 +36,7 @@ async function render(main) {
 
     poiTotal = countRes.count ?? 0;
 
-    const usersRes = await supabase.from('user_roles').select('*', { count: 'exact', head: true });
+    const usersRes = await supabase.from('app_heartbeats').select('*', { count: 'exact', head: true });
     userTotal = usersRes.count ?? 0;
 
     let recentQuery = supabase.from('pois').select('id,name').order('id', { ascending: false }).limit(2);
