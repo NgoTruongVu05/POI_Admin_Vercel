@@ -4,6 +4,9 @@ import { getSupabase } from '../supabaseClient.js';
 import { renderLayout } from '../layout.js';
 import { escapeHtml } from '../ui.js';
 
+const HEARTBEAT_POLL_MS = 10000;
+let heartbeatPollTimer = null;
+
 if (!ensureConfigured()) {
   // config page already rendered
 } else {
@@ -64,7 +67,7 @@ async function render(main) {
         <div class="w-12 h-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center"><i class="bi bi-people"></i></div>
         <div>
           <div class="text-xs text-slate-500">Người dùng online</div>
-          <div class="text-2xl font-semibold mt-0.5">${escapeHtml(String(visits))}</div>
+          <div class="text-2xl font-semibold mt-0.5" data-active-users-count>${escapeHtml(String(visits))}</div>
         </div>
       </div>
 
@@ -86,6 +89,34 @@ async function render(main) {
       </section>
     </div>
   `;
+
+  startActiveUsersPolling(main, session);
+}
+
+function stopActiveUsersPolling() {
+  if (heartbeatPollTimer) {
+    clearInterval(heartbeatPollTimer);
+    heartbeatPollTimer = null;
+  }
+}
+
+function startActiveUsersPolling(main, session) {
+  stopActiveUsersPolling();
+
+  const tick = async () => {
+    const target = main.querySelector('[data-active-users-count]');
+    if (!target) {
+      stopActiveUsersPolling();
+      return;
+    }
+
+    const count = await getActiveUsersCount(session);
+    target.textContent = String(count);
+  };
+
+  heartbeatPollTimer = setInterval(() => {
+    void tick();
+  }, HEARTBEAT_POLL_MS);
 }
 
 async function getActiveUsersCount(session) {

@@ -50,6 +50,7 @@ create index if not exists idx_app_heartbeats_last_seen on public.app_heartbeats
 alter table public.pois enable row level security;
 alter table public.languages enable row level security;
 alter table public.poitranslations enable row level security;
+alter table public.app_heartbeats enable row level security;
 
 drop policy if exists "pois_auth_all" on public.pois;
 create policy "pois_auth_all" on public.pois
