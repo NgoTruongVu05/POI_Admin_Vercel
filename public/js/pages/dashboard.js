@@ -5,7 +5,7 @@ import { renderLayout } from '../layout.js';
 import { escapeHtml } from '../ui.js';
 
 const HEARTBEAT_POLL_MS = 10000;
-const HEARTBEAT_WINDOW_SECONDS = 30;
+const HEARTBEAT_WINDOW_SECONDS = 60;
 let heartbeatPollTimer = null;
 
 if (!ensureConfigured()) {

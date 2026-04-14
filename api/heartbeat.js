@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-const ACTIVE_USERS_WINDOW_SECONDS = 30;
+const ACTIVE_USERS_WINDOW_SECONDS = 60;
 
 function json(res, status, body) {
   res.status(status).setHeader('Content-Type', 'application/json');
