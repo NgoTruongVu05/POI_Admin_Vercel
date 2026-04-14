@@ -28,6 +28,19 @@ create table if not exists public.poitranslations (
   primary key (poi_id, lang_code)
 );
 
+create table if not exists public.app_heartbeats (
+  client_id text primary key,
+  user_id uuid null references auth.users(id) on delete set null,
+  actor text not null default 'tourist' check (actor in ('admin', 'manager', 'tourist')),
+  app text not null default 'poi-mobile',
+  platform text null,
+  last_seen timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_app_heartbeats_last_seen on public.app_heartbeats (last_seen desc);
+
 -- =========================================
 -- Row Level Security (RLS)
 -- Policy: only authenticated users can read/write.
@@ -91,6 +104,11 @@ $$;
 drop trigger if exists trg_user_roles_updated_at on public.user_roles;
 create trigger trg_user_roles_updated_at
 before update on public.user_roles
+for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_app_heartbeats_updated_at on public.app_heartbeats;
+create trigger trg_app_heartbeats_updated_at
+before update on public.app_heartbeats
 for each row execute function public.set_updated_at();
 
 alter table public.user_roles enable row level security;

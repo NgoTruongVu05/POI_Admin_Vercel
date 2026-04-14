@@ -42,7 +42,7 @@ async function render(main) {
     recentPois = [];
   }
 
-  const visits = 1284;
+  const visits = await getActiveUsersCount(session);
   const growth = '+12%';
 
   main.innerHTML = `
@@ -63,7 +63,7 @@ async function render(main) {
       <div class="bg-white border border-slate-200 rounded-2xl p-5 flex items-center gap-4">
         <div class="w-12 h-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center"><i class="bi bi-people"></i></div>
         <div>
-          <div class="text-xs text-slate-500">Lượt truy cập</div>
+          <div class="text-xs text-slate-500">Người dùng online</div>
           <div class="text-2xl font-semibold mt-0.5">${escapeHtml(String(visits))}</div>
         </div>
       </div>
@@ -86,6 +86,27 @@ async function render(main) {
       </section>
     </div>
   `;
+}
+
+async function getActiveUsersCount(session) {
+  const accessToken = (session?.access_token ?? '').toString();
+  if (!accessToken) return 0;
+
+  try {
+    const response = await fetch('/api/heartbeat?window_seconds=120', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    if (!response.ok) return 0;
+    const payload = await response.json();
+    const value = Number(payload?.active_users ?? 0);
+    return Number.isFinite(value) && value >= 0 ? value : 0;
+  } catch {
+    return 0;
+  }
 }
 
 function renderRecentPois(items) {
