@@ -116,15 +116,23 @@ export default async function handler(req, res) {
 
     const cutoff = new Date(Date.now() - (ACTIVE_USERS_WINDOW_SECONDS * 1000)).toISOString();
 
-    const countRes = await supabaseAdmin
+    const activeCountRes = await supabaseAdmin
       .from('app_heartbeats')
       .select('client_id', { count: 'exact', head: true })
       .gte('last_seen', cutoff);
 
-    if (countRes.error) return json(res, 500, { error: countRes.error.message });
+    if (activeCountRes.error) return json(res, 500, { error: activeCountRes.error.message });
+
+    const totalVisitorsRes = await supabaseAdmin
+      .from('app_heartbeats')
+      .select('client_id', { count: 'exact', head: true })
+      .eq('actor', 'tourist');
+
+    if (totalVisitorsRes.error) return json(res, 500, { error: totalVisitorsRes.error.message });
 
     return json(res, 200, {
-      active_users: countRes.count ?? 0,
+      active_users: activeCountRes.count ?? 0,
+      total_visitors: totalVisitorsRes.count ?? 0,
       window_seconds: ACTIVE_USERS_WINDOW_SECONDS
     });
   } catch (err) {

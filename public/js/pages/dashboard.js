@@ -26,7 +26,7 @@ async function render(main) {
   const role = ((session?.user?.user_metadata?.role ?? '') || '').toString();
 
   let poiTotal = 0;
-  let userTotal = 0;
+  let visitorTotal = 0;
   let recentPois = [];
 
   try {
@@ -36,9 +36,6 @@ async function render(main) {
 
     poiTotal = countRes.count ?? 0;
 
-    const usersRes = await supabase.from('app_heartbeats').select('*', { count: 'exact', head: true });
-    userTotal = usersRes.count ?? 0;
-
     let recentQuery = supabase.from('pois').select('id,name').order('id', { ascending: false }).limit(2);
     if (role === 'manager' && userId) recentQuery = recentQuery.eq('user_id', userId);
     const recentRes = await recentQuery;
@@ -47,11 +44,12 @@ async function render(main) {
     recentPois = recentRes.data ?? [];
   } catch {
     poiTotal = 0;
-    userTotal = 0;
     recentPois = [];
   }
 
-  const visits = await getActiveUsersCount(session);
+  const heartbeatStats = await getHeartbeatStats(session);
+  const visits = heartbeatStats.activeUsers;
+  visitorTotal = heartbeatStats.totalVisitors;
 
   main.innerHTML = `
     <div>
@@ -79,8 +77,8 @@ async function render(main) {
       <div class="bg-white border border-slate-200 rounded-2xl p-5 flex items-center gap-4">
         <div class="w-12 h-12 rounded-2xl bg-violet-600 text-white flex items-center justify-center"><i class="bi bi-graph-up"></i></div>
         <div>
-          <div class="text-xs text-slate-500">Số lượng người dùng</div>
-          <div class="text-2xl font-semibold mt-0.5">${escapeHtml(String(userTotal))}</div>
+          <div class="text-xs text-slate-500">Số lượng du khách</div>
+          <div class="text-2xl font-semibold mt-0.5">${escapeHtml(String(visitorTotal))}</div>
         </div>
       </div>
     </div>
@@ -125,8 +123,13 @@ function startActiveUsersPolling(main, session) {
 }
 
 async function getActiveUsersCount(session) {
+  const stats = await getHeartbeatStats(session);
+  return stats.activeUsers;
+}
+
+async function getHeartbeatStats(session) {
   const accessToken = (session?.access_token ?? '').toString();
-  if (!accessToken) return 0;
+  if (!accessToken) return { activeUsers: 0, totalVisitors: 0 };
 
   try {
     const response = await fetch(`/api/heartbeat?window_seconds=${HEARTBEAT_WINDOW_SECONDS}`, {
@@ -136,12 +139,17 @@ async function getActiveUsersCount(session) {
       }
     });
 
-    if (!response.ok) return 0;
+    if (!response.ok) return { activeUsers: 0, totalVisitors: 0 };
     const payload = await response.json();
-    const value = Number(payload?.active_users ?? 0);
-    return Number.isFinite(value) && value >= 0 ? value : 0;
+    const activeUsersValue = Number(payload?.active_users ?? 0);
+    const totalVisitorsValue = Number(payload?.total_visitors ?? 0);
+
+    return {
+      activeUsers: Number.isFinite(activeUsersValue) && activeUsersValue >= 0 ? activeUsersValue : 0,
+      totalVisitors: Number.isFinite(totalVisitorsValue) && totalVisitorsValue >= 0 ? totalVisitorsValue : 0
+    };
   } catch {
-    return 0;
+    return { activeUsers: 0, totalVisitors: 0 };
   }
 }
 
