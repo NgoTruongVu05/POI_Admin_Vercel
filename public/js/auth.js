@@ -1,4 +1,5 @@
 import { getSupabase } from './supabaseClient.js';
+// Flow: Gửi yêu cầu đăng nhập
 
 export async function getSession() {
   const supabase = getSupabase();
