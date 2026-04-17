@@ -4,6 +4,8 @@ import { getSupabase } from '../supabaseClient.js';
 import { renderLayout } from '../layout.js';
 import { escapeHtml, getTailwindColorFromClass, waitForGlobal } from '../ui.js';
 
+const APP_DEEP_LINK_BASE = 'poiapp://poi-detail';
+
 if (!ensureConfigured()) {
   // config page already rendered
 } else {
@@ -59,6 +61,42 @@ async function render(main) {
         <div class="mt-6 flex items-center justify-end gap-3">
           <button id="deleteCancel" type="button" class="inline-flex items-center rounded-xl bg-white border border-slate-200 text-slate-700 px-4 py-2 text-sm font-semibold hover:bg-slate-50 transition">Huỷ</button>
           <button id="deleteConfirm" type="button" class="inline-flex items-center rounded-xl bg-rose-600 text-white px-4 py-2 text-sm font-semibold hover:bg-rose-700 transition">Xoá</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="qrModal" class="fixed inset-0 z-[9999] hidden items-center justify-center bg-slate-900/40 px-4 py-6 overflow-y-auto">
+      <div class="w-full max-w-lg rounded-2xl bg-white border border-slate-200 p-6">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-lg font-semibold">Tạo mã QR POI</div>
+            <div id="qrPoiName" class="mt-1 text-sm text-slate-500"></div>
+          </div>
+          <button id="qrClose" type="button" class="w-9 h-9 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 transition flex items-center justify-center" aria-label="Đóng">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 flex items-center justify-center">
+          <img id="qrImage" alt="QR code" class="w-64 h-64 rounded-lg border border-white shadow-sm bg-white" />
+        </div>
+
+        <label for="qrPayload" class="mt-4 block text-sm text-slate-500">Nội dung mã QR (deep link cho app)</label>
+        <textarea id="qrPayload" rows="3" readonly class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-700"></textarea>
+
+        <div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <button id="qrCopy" type="button" class="inline-flex items-center justify-center gap-2 rounded-xl bg-white border border-slate-200 text-slate-700 px-4 py-2 text-sm font-semibold hover:bg-slate-50 transition">
+            <i class="bi bi-link-45deg"></i>
+            <span>Copy nội dung</span>
+          </button>
+          <a id="qrDownload" href="#" download="poi-qr.png" class="inline-flex items-center justify-center gap-2 rounded-xl bg-white border border-slate-200 text-slate-700 px-4 py-2 text-sm font-semibold hover:bg-slate-50 transition">
+            <i class="bi bi-download"></i>
+            <span>Lưu ảnh QR</span>
+          </a>
+          <button id="qrCloseFooter" type="button" class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-semibold hover:bg-blue-700 transition">
+            <i class="bi bi-check2"></i>
+            <span>Xong</span>
+          </button>
         </div>
       </div>
     </div>
@@ -135,6 +173,17 @@ async function render(main) {
   const poiList = document.getElementById('poiList');
   const poiEmpty = document.getElementById('poiEmpty');
   const search = document.getElementById('poiSearch');
+  const qrModal = document.getElementById('qrModal');
+  const qrClose = document.getElementById('qrClose');
+  const qrCloseFooter = document.getElementById('qrCloseFooter');
+  const qrPoiName = document.getElementById('qrPoiName');
+  const qrImage = document.getElementById('qrImage');
+  const qrPayloadEl = document.getElementById('qrPayload');
+  const qrCopy = document.getElementById('qrCopy');
+  const qrDownload = document.getElementById('qrDownload');
+
+  let qrData = null;
+  let qrLibPromise = null;
 
   renderList(pois);
   applyFilter('');
@@ -176,6 +225,10 @@ async function render(main) {
               <i class="bi bi-eye"></i>
             </a>
 
+            <button type="button" class="qr-btn w-10 h-10 rounded-xl border border-slate-200 text-slate-500 hover:bg-white hover:text-emerald-600 hover:border-emerald-200 transition flex items-center justify-center" title="Tạo mã QR" aria-label="Tạo mã QR" data-id="${escapeHtml(id)}" data-name="${escapeHtml(name)}">
+              <i class="bi bi-qr-code"></i>
+            </button>
+
             <a href="/poi-form?id=${encodeURIComponent(id)}" class="w-10 h-10 rounded-xl border border-slate-200 text-slate-500 hover:bg-white hover:text-blue-600 hover:border-blue-200 transition flex items-center justify-center" title="Sửa POI" aria-label="Sửa POI">
               <i class="bi bi-pencil"></i>
             </a>
@@ -202,6 +255,14 @@ async function render(main) {
 
     poiList.querySelectorAll('.delete-btn').forEach(btn => {
       btn.addEventListener('click', () => openDelete(btn.getAttribute('data-id') || ''));
+    });
+
+    poiList.querySelectorAll('.qr-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = (btn.getAttribute('data-id') ?? '').toString();
+        const name = (btn.getAttribute('data-name') ?? '').toString();
+        openQr(id, name);
+      });
     });
   }
 
@@ -269,6 +330,85 @@ async function render(main) {
     pendingDeleteId = '';
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+  }
+
+  qrClose.addEventListener('click', closeQr);
+  qrCloseFooter.addEventListener('click', closeQr);
+  qrModal.addEventListener('click', (e) => { if (e.target === qrModal) closeQr(); });
+
+  qrCopy.addEventListener('click', async () => {
+    const value = (qrPayloadEl.value ?? '').toString();
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      showFlash('Đã copy nội dung QR.', 'success');
+    } catch {
+      showFlash('Không thể copy tự động. Vui lòng copy thủ công.', 'error');
+    }
+  });
+
+  async function openQr(id, name) {
+    const poiId = (id ?? '').toString().trim();
+    if (!poiId) return;
+
+    const payload = buildAppDeepLink(poiId, name);
+    qrData = {
+      poiId,
+      poiName: (name ?? '').toString() || poiId,
+      payload,
+      imageUrl: ''
+    };
+
+    qrPoiName.textContent = qrData.poiName;
+    qrPayloadEl.value = qrData.payload;
+    qrImage.removeAttribute('src');
+    qrDownload.href = '#';
+    qrDownload.setAttribute('download', `poi-${poiId}-qr.png`);
+    qrModal.classList.remove('hidden');
+    qrModal.classList.add('flex');
+
+    try {
+      const imageUrl = await createQrDataUrl(qrData.payload);
+      qrData.imageUrl = imageUrl;
+      qrImage.src = imageUrl;
+      qrDownload.href = imageUrl;
+    } catch (err) {
+      closeQr();
+      showFlash('Không thể tạo ảnh QR. Vui lòng thử lại.', 'error');
+      console.warn('QR generation error:', err);
+    }
+  }
+
+  function closeQr() {
+    qrData = null;
+    qrModal.classList.add('hidden');
+    qrModal.classList.remove('flex');
+  }
+
+  function buildAppDeepLink(poiId, poiName) {
+    const url = new URL(APP_DEEP_LINK_BASE);
+    url.searchParams.set('id', poiId);
+    url.searchParams.set('audio', '1');
+    if ((poiName ?? '').toString().trim()) {
+      url.searchParams.set('name', poiName.toString().trim());
+    }
+    return url.toString();
+  }
+
+  async function createQrDataUrl(text) {
+    if (!qrLibPromise) {
+      qrLibPromise = import('https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm');
+    }
+    const qrMod = await qrLibPromise;
+    return qrMod.toDataURL(text, {
+      margin: 2,
+      width: 720,
+      errorCorrectionLevel: 'H',
+      color: {
+        dark: '#0f172a',
+        light: '#ffffff'
+      }
+    });
   }
 
   function showFlash(message, type) {
