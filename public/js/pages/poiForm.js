@@ -51,14 +51,19 @@ async function render(main) {
 
   const session = await getSession();
   const userId = session?.user?.id ?? null;
+  const role = ((session?.user?.user_metadata?.role ?? '') || '').toString();
 
-  let values = { id: '', name: '', description: '', lat: '', lng: '', image: '', maplink: '' };
+  let values = { id: '', name: '', description: '', lat: '', lng: '', image: '', maplink: '', priority: '0' };
   let suggestedId = '';
   let loadError = '';
 
   if (isEdit) {
     try {
-      const res = await supabase.from('pois').select('id,name,description,lat,lng,image,maplink').eq('id', editId).limit(1).single();
+      let res = await supabase.from('pois').select('id,name,description,lat,lng,image,maplink,priority').eq('id', editId).limit(1).single();
+      if (res.error) {
+        // Backward compatibility if DB doesn't have priority column yet
+        res = await supabase.from('pois').select('id,name,description,lat,lng,image,maplink').eq('id', editId).limit(1).single();
+      }
       if (res.error) throw res.error;
       values = {
         id: res.data.id,
@@ -67,7 +72,8 @@ async function render(main) {
         lat: String(res.data.lat ?? ''),
         lng: String(res.data.lng ?? ''),
         image: res.data.image ?? '',
-        maplink: res.data.maplink ?? ''
+        maplink: res.data.maplink ?? '',
+        priority: String(res.data.priority ?? 0)
       };
     } catch {
       loadError = 'Không tìm thấy POI để sửa.';
@@ -149,6 +155,14 @@ async function render(main) {
           <input id="lng" name="lng" value="${escapeHtml(values.lng)}" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="106.660172" required />
         </label>
 
+        ${role === 'admin' ? `
+          <label class="block">
+            <div class="text-sm font-semibold text-slate-700">Priority (0–20)</div>
+            <input id="priority" name="priority" type="number" min="0" max="20" step="1" inputmode="numeric" pattern="[0-9]*" value="${escapeHtml(values.priority)}" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="0" />
+            <div class="mt-1 text-xs text-slate-500">Chỉ admin mới có quyền thay đổi. Chỉ nhập số nguyên từ 0 đến 20.</div>
+          </label>
+        ` : ''}
+
         <label class="block md:col-span-2">
           <div class="text-sm font-semibold text-slate-700">Maplink</div>
           <input id="maplink" name="maplink" value="${escapeHtml(values.maplink)}" class="mt-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition" placeholder="https://maps.google.com/?q=..." maxlength="1000" />
@@ -185,6 +199,7 @@ async function render(main) {
   const imageFileInput = document.getElementById('imageFile');
   const imagePreview = document.getElementById('imagePreview');
   const flash = document.getElementById('flash');
+  const priorityInput = role === 'admin' ? document.getElementById('priority') : null;
 
   function showFlash(message, type) {
     if (!flash) return;
@@ -222,6 +237,28 @@ async function render(main) {
     });
   }
 
+  if (priorityInput) {
+    const sanitize = () => {
+      const raw = (priorityInput.value ?? '').toString();
+      // Keep digits only
+      let cleaned = raw.replace(/[^0-9]/g, '');
+      // Avoid leading zeros like 0002 -> 2 (but keep single 0)
+      cleaned = cleaned.replace(/^0+(\d)/, '$1');
+      if (cleaned === '') {
+        priorityInput.value = '';
+        return;
+      }
+      const n = Number(cleaned);
+      if (!Number.isFinite(n)) {
+        priorityInput.value = '';
+        return;
+      }
+      priorityInput.value = String(Math.min(20, Math.max(0, Math.trunc(n))));
+    };
+    priorityInput.addEventListener('input', sanitize);
+    sanitize();
+  }
+
   // Map picker
   const L = await waitForGlobal('L', 5000);
   if (L) {
@@ -237,11 +274,16 @@ async function render(main) {
     const description = document.getElementById('description').value.trim();
     const latRaw = document.getElementById('lat').value.trim();
     const lngRaw = document.getElementById('lng').value.trim();
+    let priorityRaw = priorityInput ? (priorityInput.value ?? '').toString().trim() : '';
+    if (priorityInput && priorityRaw === '') {
+      priorityRaw = '0';
+      priorityInput.value = '0';
+    }
 
     const id = isEdit ? editId : (rawId || suggestedId || generatePoiId());
     if (!isEdit && idInput && !rawId) idInput.value = id;
 
-    const errors = validate({ id: rawId, name, description, latRaw, lngRaw, isEdit });
+    const errors = validate({ id: rawId, name, description, latRaw, lngRaw, isEdit, priorityRaw, canSetPriority: role === 'admin' });
     if (errors.length) {
       errorBox.innerHTML = `
         <div class="font-semibold mb-1">Không thể lưu POI</div>
@@ -258,6 +300,7 @@ async function render(main) {
     const lng = Number(lngRaw);
     const maplink = document.getElementById('maplink')?.value.trim();
     const file = imageFileInput?.files?.[0] ?? null;
+    const priority = (role === 'admin') ? Number(priorityRaw) : null;
 
     try {
       console.debug('POI form submit debug', { isEdit, editId, rawId, id, file });
@@ -313,6 +356,20 @@ async function render(main) {
           .from('pois')
           .insert({ id, name, description: description || null, lat, lng, user_id: userId, image: imageUrl, maplink: maplink || null });
         if (res.error) throw res.error;
+      }
+
+      if (role === 'admin') {
+        const token = (session?.access_token ?? '') || '';
+        const resp = await fetch(`/api/pois/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({ priority })
+        });
+        const j = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error((j?.error ?? 'Không thể cập nhật priority.').toString());
       }
 
       const { data: activeLanguages, error: langError } = await supabase
@@ -442,7 +499,7 @@ async function render(main) {
   }
 }
 
-function validate({ id, name, description, latRaw, lngRaw, isEdit }) {
+function validate({ id, name, description, latRaw, lngRaw, isEdit, priorityRaw, canSetPriority }) {
   const errors = [];
 
   if (!isEdit) {
@@ -466,6 +523,15 @@ function validate({ id, name, description, latRaw, lngRaw, isEdit }) {
 
   if (Number.isFinite(lat) && (lat < -90 || lat > 90)) errors.push('Latitude phải nằm trong [-90, 90].');
   if (Number.isFinite(lng) && (lng < -180 || lng > 180)) errors.push('Longitude phải nằm trong [-180, 180].');
+
+  if (canSetPriority) {
+    const raw = (priorityRaw ?? '').toString().trim();
+    if (!/^\d+$/.test(raw)) errors.push('Priority chỉ được nhập ký tự số (0 đến 20).');
+    else {
+      const p = Number(raw);
+      if (!Number.isInteger(p) || p < 0 || p > 20) errors.push('Priority phải là số nguyên từ 0 đến 20.');
+    }
+  }
 
   return errors;
 }

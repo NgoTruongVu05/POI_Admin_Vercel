@@ -28,7 +28,11 @@ async function render(main) {
 
   let poi = null;
   try {
-    const res = await supabase.from('pois').select('id,name,description,lat,lng,image,maplink').eq('id', id).limit(1).single();
+    let res = await supabase.from('pois').select('id,name,description,lat,lng,image,maplink,priority').eq('id', id).limit(1).single();
+    if (res.error) {
+      // Backward compatibility if DB doesn't have priority column yet
+      res = await supabase.from('pois').select('id,name,description,lat,lng,image,maplink').eq('id', id).limit(1).single();
+    }
     if (res.error) throw res.error;
     poi = res.data;
   } catch {
@@ -93,6 +97,11 @@ async function render(main) {
                 <div class="text-sm text-slate-500">Longitude</div>
                 <div class="mt-1 font-semibold">${escapeHtml(String(poi.lng ?? ''))}</div>
               </div>
+            </div>
+
+            <div class="mt-5">
+              <div class="text-sm text-slate-500">Priority</div>
+              <div class="mt-1 font-semibold">${escapeHtml(String(poi.priority ?? 0))}</div>
             </div>
           </div>
         </section>

@@ -15,6 +15,34 @@ function getBearerToken(req) {
   return match ? match[1].trim() : '';
 }
 
+async function readJsonBody(req) {
+  try {
+    if (req.body && typeof req.body === 'object') return req.body;
+    if (typeof req.body === 'string' && req.body.trim() !== '') return JSON.parse(req.body);
+
+    const raw = await new Promise((resolve, reject) => {
+      let data = '';
+      req.on('data', chunk => { data += chunk; });
+      req.on('end', () => resolve(data));
+      req.on('error', reject);
+    });
+
+    if (!raw || !raw.toString().trim()) return {};
+    return JSON.parse(raw.toString());
+  } catch {
+    return {};
+  }
+}
+
+function parsePriority(value) {
+  const raw = (value ?? '').toString().trim();
+  if (!/^\d+$/.test(raw)) return { ok: false, message: 'Priority must be an integer (digits only).' };
+  const n = Number(raw);
+  if (!Number.isInteger(n)) return { ok: false, message: 'Priority must be an integer.' };
+  if (n < 0 || n > 20) return { ok: false, message: 'Priority must be between 0 and 20.' };
+  return { ok: true, priority: n };
+}
+
 async function requireAdmin(req) {
   const url = getEnv('SUPABASE_URL');
   const anonKey = getEnv('SUPABASE_ANON_KEY');
@@ -77,10 +105,38 @@ function parseStorageUrl(u) {
 export default async function handler(req, res) {
   try {
     console.log('[DELETE POI] Request:', { method: req.method, url: req.url, query: req.query, path: req.query?.id });
-    
-    if (req.method !== 'DELETE') {
-      res.setHeader('Allow', 'DELETE');
+
+    if (req.method !== 'DELETE' && req.method !== 'PATCH') {
+      res.setHeader('Allow', 'DELETE, PATCH');
       return json(res, 405, { error: 'Method Not Allowed' });
+    }
+
+    const id = (req.query?.id ?? '').toString();
+    if (!id) return json(res, 400, { error: 'Missing id.' });
+
+    // PATCH: admin-only update priority
+    if (req.method === 'PATCH') {
+      const admin = await requireAdmin(req);
+      if (!admin.ok) return json(res, admin.status, { error: admin.message });
+
+      const body = await readJsonBody(req);
+      const parsed = parsePriority(body?.priority);
+      if (!parsed.ok) return json(res, 400, { error: parsed.message });
+
+      const adminClient = getAdminClient();
+      if (!adminClient.ok) return json(res, adminClient.status, { error: adminClient.message });
+      const { supabaseAdmin } = adminClient;
+
+      const upd = await supabaseAdmin
+        .from('pois')
+        .update({ priority: parsed.priority })
+        .eq('id', id)
+        .select('id,priority')
+        .maybeSingle();
+
+      if (upd.error) return json(res, 500, { error: upd.error.message });
+      if (!upd.data) return json(res, 404, { error: 'POI not found.' });
+      return json(res, 200, { ok: true, data: upd.data });
     }
 
     // Authenticate user (admin or manager). Managers may delete only their own POIs.
@@ -104,9 +160,7 @@ export default async function handler(req, res) {
     if (!adminClient.ok) return json(res, adminClient.status, { error: adminClient.message });
     const { supabaseAdmin } = adminClient;
 
-    const id = (req.query?.id ?? '').toString();
     console.log('[DELETE POI] Extracted id:', id, 'Role:', role);
-    if (!id) return json(res, 400, { error: 'Missing id.' });
 
     if (role === 'manager') {
       // ensure the manager owns this POI

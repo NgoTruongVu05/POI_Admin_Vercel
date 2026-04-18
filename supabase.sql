@@ -12,8 +12,37 @@ create table if not exists public.pois (
   image TEXT,
   lat double precision not null,
   lng double precision not null,
+  priority integer not null default 0 check (priority between 0 and 20),
   user_id uuid references auth.users(id) on delete cascade on update cascade -- owner/manager user id (nullable)
 );
+
+-- Enforce: only admin can change priority (works even if RLS policy is permissive).
+-- Service role / server-side admin calls have no JWT claims and are allowed.
+create or replace function public.enforce_poi_priority_admin()
+returns trigger
+language plpgsql
+as $$
+declare
+  claims jsonb;
+  role text;
+begin
+  if new.priority is distinct from old.priority then
+    claims := nullif(current_setting('request.jwt.claims', true), '')::jsonb;
+    if claims is not null then
+      role := claims #>> '{user_metadata,role}';
+      if role is null or role <> 'admin' then
+        raise exception 'Forbidden: admin role required to change priority';
+      end if;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_pois_priority_admin on public.pois;
+create trigger trg_pois_priority_admin
+before update of priority on public.pois
+for each row execute function public.enforce_poi_priority_admin();
 
 create table if not exists public.languages (
   code varchar(10) primary key,
