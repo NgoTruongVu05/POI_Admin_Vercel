@@ -10,14 +10,17 @@ if (!ensureConfigured()) {
   const session = await requireAuth();
   if (session) {
     const main = renderLayout({ activeKey: 'pois', title: 'Chi tiết POI | POI Admin', user: session.user });
-    await render(main);
+    await render(main, session);
   }
 }
 // Hello world
 
-async function render(main) {
+async function render(main, session) {
   const L = await waitForGlobal('L', 5000);
   const id = (getQueryParam('id') ?? '').trim();
+
+  const role = ((session?.user?.user_metadata?.role ?? '') || '').toString().toLowerCase();
+  const isAdmin = role === 'admin';
 
   if (!id) {
     main.innerHTML = `<div class="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">Thiếu POI ID.</div>`;
@@ -99,10 +102,12 @@ async function render(main) {
               </div>
             </div>
 
+            ${isAdmin ? `
             <div class="mt-5">
               <div class="text-sm text-slate-500">Priority</div>
               <div class="mt-1 font-semibold">${escapeHtml(String(poi.priority ?? 0))}</div>
             </div>
+            ` : ''}
           </div>
         </section>
 
