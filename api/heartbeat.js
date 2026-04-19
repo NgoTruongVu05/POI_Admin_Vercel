@@ -109,8 +109,8 @@ export default async function handler(req, res) {
     }
 
     const authed = await getAuthedUser(req);
-    const role = (authed?.user?.user_metadata?.role ?? '').toString();
-    if (!authed.ok || (role !== 'admin' && role !== 'manager')) {
+    const role = (authed?.user?.user_metadata?.role ?? '').toString().toLowerCase();
+    if (!authed.ok || role !== 'admin') {
       return json(res, 403, { error: 'Forbidden' });
     }
 

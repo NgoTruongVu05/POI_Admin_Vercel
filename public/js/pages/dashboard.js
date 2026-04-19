@@ -23,7 +23,8 @@ async function render(main) {
 
   const session = await getSession();
   const userId = session?.user?.id ?? '';
-  const role = ((session?.user?.user_metadata?.role ?? '') || '').toString();
+  const role = ((session?.user?.user_metadata?.role ?? '') || '').toString().toLowerCase();
+  const isAdmin = role === 'admin';
 
   let poiTotal = 0;
   let visitorTotal = 0;
@@ -47,9 +48,12 @@ async function render(main) {
     recentPois = [];
   }
 
-  const heartbeatStats = await getHeartbeatStats(session);
-  const visits = heartbeatStats.activeUsers;
-  visitorTotal = heartbeatStats.totalVisitors;
+  let visits = 0;
+  if (isAdmin) {
+    const heartbeatStats = await getHeartbeatStats(session);
+    visits = heartbeatStats.activeUsers;
+    visitorTotal = heartbeatStats.totalVisitors;
+  }
 
   main.innerHTML = `
     <div>
@@ -65,7 +69,7 @@ async function render(main) {
           <div class="text-2xl font-semibold mt-0.5">${escapeHtml(String(poiTotal))}</div>
         </div>
       </div>
-
+      ${isAdmin ? `
       <div class="bg-white border border-slate-200 rounded-2xl p-5 flex items-center gap-4">
         <div class="w-12 h-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center"><i class="bi bi-people"></i></div>
         <div>
@@ -81,6 +85,7 @@ async function render(main) {
           <div class="text-2xl font-semibold mt-0.5" data-total-visitors-count>${escapeHtml(String(visitorTotal))}</div>
         </div>
       </div>
+      ` : ''}
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
@@ -93,7 +98,11 @@ async function render(main) {
     </div>
   `;
 
-  startActiveUsersPolling(main, session);
+  if (isAdmin) {
+    startActiveUsersPolling(main, session);
+  } else {
+    stopActiveUsersPolling();
+  }
 }
 
 function stopActiveUsersPolling() {
