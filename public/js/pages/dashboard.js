@@ -51,7 +51,7 @@ async function render(main) {
   let visits = 0;
   if (isAdmin) {
     const heartbeatStats = await getHeartbeatStats(session);
-    visits = heartbeatStats.activeUsers * 3;
+    visits = heartbeatStats.activeUsers;
     visitorTotal = heartbeatStats.totalVisitors;
   }
 
